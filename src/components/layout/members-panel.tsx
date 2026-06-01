@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useRealtimeStore } from '@/stores/realtimeStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -32,7 +33,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { Label } from '@/components/ui/label'
-import { X, Search, UserPlus, Shield, Crown, Circle } from 'lucide-react'
+import { X, Search, UserPlus, Shield, Crown, Circle, Wifi, WifiOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ROLE_BADGE_COLORS: Record<string, string> = {
@@ -48,6 +49,8 @@ export function MembersPanel() {
   const { user } = useAuthStore()
   const { membersPanelOpen, setMembersPanelOpen } = useUIStore()
   const currentWorkspaceId = useUIStore((s) => s.currentWorkspaceId)
+  const userPresence = useRealtimeStore((s) => s.userPresence)
+  const isConnected = useRealtimeStore((s) => s.isConnected)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
@@ -55,14 +58,27 @@ export function MembersPanel() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
 
+  // Use real-time presence to determine online status, fallback to user.status
+  const getEffectiveStatus = (member: typeof members[0]) => {
+    const realtimeStatus = userPresence[member.userId]
+    if (realtimeStatus) return realtimeStatus
+    return member.user?.status || 'offline'
+  }
+
   const filteredMembers = members.filter((m) =>
     m.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     m.user?.email?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const onlineMembers = filteredMembers.filter((m) => m.user?.status === 'online')
-  const awayMembers = filteredMembers.filter((m) => m.user?.status === 'away' || m.user?.status === 'busy')
-  const offlineMembers = filteredMembers.filter((m) => m.user?.status === 'offline' || !m.user?.status)
+  const onlineMembers = filteredMembers.filter((m) => getEffectiveStatus(m) === 'online')
+  const awayMembers = filteredMembers.filter((m) => {
+    const status = getEffectiveStatus(m)
+    return status === 'away' || status === 'busy'
+  })
+  const offlineMembers = filteredMembers.filter((m) => {
+    const status = getEffectiveStatus(m)
+    return status === 'offline' || !status
+  })
 
   const getInitials = (name: string) => {
     return name
@@ -118,72 +134,84 @@ export function MembersPanel() {
 
   if (!membersPanelOpen) return null
 
-  const renderMemberRow = (member: typeof members[0], dimmed = false) => (
-    <TooltipProvider key={member.id}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.15 }}
-            className={cn(
-              'flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer transition-all duration-150',
-              'hover:bg-primary/5 hover:shadow-sm',
-              dimmed && 'opacity-50'
-            )}
-          >
-            <div className="relative shrink-0">
-              <Avatar className="size-9 ring-2 ring-background">
-                <AvatarImage src={member.user?.avatar || undefined} />
-                <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
-                  {member.user?.name ? getInitials(member.user.name) : '?'}
-                </AvatarFallback>
-              </Avatar>
-              <div className={cn(
-                'absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full border-2 border-background',
-                getStatusColor(member.user?.status)
-              )} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-medium truncate">
-                  {member.user?.name}
-                  {member.userId === user?.id && (
-                    <span className="text-muted-foreground font-normal"> (you)</span>
-                  )}
-                </span>
-                {getRoleIcon(member.role)}
+  const renderMemberRow = (member: typeof members[0], dimmed = false) => {
+    const effectiveStatus = getEffectiveStatus(member)
+    return (
+      <TooltipProvider key={member.id}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <motion.div
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.15 }}
+              className={cn(
+                'flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer transition-all duration-150',
+                'hover:bg-primary/5 hover:shadow-sm',
+                dimmed && 'opacity-50'
+              )}
+            >
+              <div className="relative shrink-0">
+                <Avatar className="size-9 ring-2 ring-background">
+                  <AvatarImage src={member.user?.avatar || undefined} />
+                  <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
+                    {member.user?.name ? getInitials(member.user.name) : '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className={cn(
+                  'absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full border-2 border-background',
+                  getStatusColor(effectiveStatus)
+                )} />
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'text-[10px] h-4 px-1.5 capitalize border',
-                    ROLE_BADGE_COLORS[member.role] || ROLE_BADGE_COLORS.member
-                  )}
-                >
-                  {member.role}
-                </Badge>
-                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                  <Circle className={cn('size-1.5 fill-current', getStatusColor(member.user?.status).replace('bg-', 'text-'))} />
-                  {getStatusLabel(member.user?.status)}
-                </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium truncate">
+                    {member.user?.name}
+                    {member.userId === user?.id && (
+                      <span className="text-muted-foreground font-normal"> (you)</span>
+                    )}
+                  </span>
+                  {getRoleIcon(member.role)}
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px] h-4 px-1.5 capitalize border',
+                      ROLE_BADGE_COLORS[member.role] || ROLE_BADGE_COLORS.member
+                    )}
+                  >
+                    {member.role}
+                  </Badge>
+                  <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                    <Circle className={cn('size-1.5 fill-current', getStatusColor(effectiveStatus).replace('bg-', 'text-'))} />
+                    {getStatusLabel(effectiveStatus)}
+                  </span>
+                </div>
               </div>
-            </div>
-          </motion.div>
-        </TooltipTrigger>
-        <TooltipContent side="left" className="text-xs">
-          <p>{member.user?.email}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
+            </motion.div>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="text-xs">
+            <p>{member.user?.email}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
 
   return (
     <div className="w-72 border-l bg-background flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-semibold text-sm">Members</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-sm">Members</h3>
+          {/* Connection status indicator */}
+          <div className={cn(
+            'flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-medium',
+            isConnected ? 'text-green-600 bg-green-50' : 'text-yellow-600 bg-yellow-50'
+          )}>
+            {isConnected ? <Wifi className="size-2.5" /> : <WifiOff className="size-2.5" />}
+          </div>
+        </div>
         <div className="flex items-center gap-1">
           <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
             <DialogTrigger asChild>

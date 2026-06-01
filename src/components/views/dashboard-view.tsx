@@ -49,7 +49,15 @@ import {
   UserPlus,
   FileText,
   ListTodo,
+  Sparkles,
+  ArrowRight,
+  Zap,
+  Sun,
+  Moon,
+  Coffee,
+  Link2,
 } from 'lucide-react'
+import { JoinWorkspaceDialog } from '@/components/workspace/join-workspace-dialog'
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -92,6 +100,42 @@ function getRelativeTime(dateStr: string): string {
   return date.toLocaleDateString()
 }
 
+// Time-of-day greeting
+function getTimeGreeting(): { text: string; icon: React.ElementType } {
+  const hour = new Date().getHours()
+  if (hour < 12) return { text: 'Good morning', icon: Sun }
+  if (hour < 17) return { text: 'Good afternoon', icon: Coffee }
+  return { text: 'Good evening', icon: Moon }
+}
+
+// Mini sparkline chart using SVG
+function MiniSparkline({ data, color = '#468432' }: { data: number[]; color?: string }) {
+  if (data.length < 2) return null
+  const max = Math.max(...data)
+  const min = Math.min(...data)
+  const range = max - min || 1
+  const width = 60
+  const height = 24
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width
+    const y = height - ((v - min) / range) * height
+    return `${x},${y}`
+  }).join(' ')
+
+  return (
+    <svg width={width} height={height} className="opacity-60">
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function DashboardView() {
   const { user, logout } = useAuthStore()
   const { workspaces, loadWorkspaces, createWorkspace, deleteWorkspace, leaveWorkspace, isLoading } = useWorkspaceStore()
@@ -102,6 +146,7 @@ export function DashboardView() {
   const [wsDescription, setWsDescription] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [leaveId, setLeaveId] = useState<string | null>(null)
+  const [joinOpen, setJoinOpen] = useState(false)
 
   useEffect(() => {
     loadWorkspaces()
@@ -156,7 +201,10 @@ export function DashboardView() {
     }
   }
 
-  // Compute stats
+  const greeting = getTimeGreeting()
+  const GreetingIcon = greeting.icon
+
+  // Compute stats with sparkline data
   const stats = useMemo(() => {
     const totalMembers = workspaces.reduce((acc, ws) => acc + (ws._count?.members ?? ws.members?.length ?? 0), 0)
     const totalChannels = workspaces.reduce((acc, ws) => acc + (ws._count?.channels ?? ws.channels?.length ?? 0), 0)
@@ -167,7 +215,20 @@ export function DashboardView() {
     }
   }, [workspaces])
 
-  // Generate mock recent activity based on workspaces
+  // Mock sparkline data (in production, this would be real historical data)
+  const sparklineData = useMemo(() => ({
+    workspaces: [1, 1, 2, 2, 3, stats.workspaces],
+    members: [2, 3, 4, 5, 6, stats.members],
+    channels: [1, 2, 3, 3, 4, stats.channels],
+  }), [stats])
+
+  const statCards = [
+    { icon: LayoutDashboard, label: 'Workspaces', value: stats.workspaces, color: 'bg-emerald-500/10 text-emerald-600', sparkline: sparklineData.workspaces, sparkColor: '#059669' },
+    { icon: Users, label: 'Total Members', value: stats.members, color: 'bg-teal-500/10 text-teal-600', sparkline: sparklineData.members, sparkColor: '#0d9488' },
+    { icon: Hash, label: 'Total Channels', value: stats.channels, color: 'bg-amber-500/10 text-amber-600', sparkline: sparklineData.channels, sparkColor: '#d97706' },
+  ]
+
+  // Generate recent activity based on workspaces
   const recentActivity = useMemo(() => {
     const activities: { icon: React.ElementType; text: string; time: string; color: string }[] = []
     workspaces.forEach((ws) => {
@@ -184,7 +245,7 @@ export function DashboardView() {
           icon: UserPlus,
           text: `${memberCount} member${memberCount > 1 ? 's' : ''} joined "${ws.name}"`,
           time: getRelativeTime(ws.updatedAt),
-          color: 'text-blue-500',
+          color: 'text-teal-500',
         })
       }
       if (channelCount > 0) {
@@ -192,18 +253,12 @@ export function DashboardView() {
           icon: Hash,
           text: `${channelCount} channel${channelCount > 1 ? 's' : ''} created in "${ws.name}"`,
           time: getRelativeTime(ws.updatedAt),
-          color: 'text-violet-500',
+          color: 'text-amber-500',
         })
       }
     })
     return activities.slice(0, 6)
   }, [workspaces])
-
-  const statCards = [
-    { icon: LayoutDashboard, label: 'Workspaces', value: stats.workspaces, color: 'bg-emerald-500/10 text-emerald-600' },
-    { icon: Users, label: 'Total Members', value: stats.members, color: 'bg-blue-500/10 text-blue-600' },
-    { icon: Hash, label: 'Total Channels', value: stats.channels, color: 'bg-violet-500/10 text-violet-600' },
-  ]
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -241,21 +296,28 @@ export function DashboardView() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
-        {/* Welcome */}
+        {/* Welcome with time-of-day greeting */}
         <motion.div
           className="mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
-            Welcome back, {user?.name?.split(' ')[0] || 'there'}! 👋
-          </h1>
-          <p className="text-muted-foreground">
-            Manage your workspaces and start collaborating with your team.
-          </p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+              <GreetingIcon className="size-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                {greeting.text}, {user?.name?.split(' ')[0] || 'there'}!
+              </h1>
+              <p className="text-muted-foreground">
+                Manage your workspaces and start collaborating with your team.
+              </p>
+            </div>
+          </div>
         </motion.div>
 
-        {/* Stats Row */}
+        {/* Stats Row with Sparklines */}
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8"
           initial="initial"
@@ -269,15 +331,54 @@ export function DashboardView() {
                   <div className={`flex size-12 items-center justify-center rounded-xl ${stat.color}`}>
                     <stat.icon className="size-6" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-2xl font-bold text-foreground">{stat.value}</p>
                     <p className="text-sm text-muted-foreground">{stat.label}</p>
                   </div>
+                  <MiniSparkline data={stat.sparkline} color={stat.sparkColor} />
                 </CardContent>
               </Card>
             </motion.div>
           ))}
         </motion.div>
+
+        {/* Quick-start section for new users */}
+        {workspaces.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mb-8"
+          >
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+                    <Zap className="size-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Get Started</h3>
+                    <p className="text-sm text-muted-foreground">Create your first workspace to begin collaborating</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="flex items-center gap-3 rounded-lg border bg-background p-3">
+                    <div className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">1</div>
+                    <span className="text-sm">Create a workspace</span>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-lg border bg-background p-3">
+                    <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground text-sm font-bold shrink-0">2</div>
+                    <span className="text-sm">Invite team members</span>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-lg border bg-background p-3">
+                    <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground text-sm font-bold shrink-0">3</div>
+                    <span className="text-sm">Start collaborating</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-3 mb-6">
@@ -320,9 +421,22 @@ export function DashboardView() {
               </div>
             </DialogContent>
           </Dialog>
+          <Button
+            variant="outline"
+            className="shadow-sm"
+            onClick={() => setJoinOpen(true)}
+          >
+            <Link2 className="size-4 mr-2" />
+            Join Workspace
+          </Button>
+          <JoinWorkspaceDialog
+            open={joinOpen}
+            onOpenChange={setJoinOpen}
+            onJoined={() => loadWorkspaces()}
+          />
         </div>
 
-        {/* Workspaces Grid */}
+        {/* Workspaces Grid - Larger cards */}
         {workspaces.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -349,173 +463,223 @@ export function DashboardView() {
             </Card>
           </motion.div>
         ) : (
-          <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8"
-            initial="initial"
-            animate="animate"
-            variants={{
-              animate: { transition: { staggerChildren: 0.05 } },
-            }}
-          >
-            {workspaces.map((ws) => {
-              const memberCount = ws._count?.members ?? ws.members?.length ?? 0
-              const channelCount = ws._count?.channels ?? ws.channels?.length ?? 0
-              const myRole = ws.members?.find((m) => m.userId === user?.id)?.role || 'member'
-              const gradient = getGradientFromName(ws.name)
-              const memberAvatars = ws.members?.slice(0, 4) || []
+          <>
+            {/* Recent Workspaces - Larger Cards */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="mb-8"
+            >
+              <h2 className="text-lg font-semibold text-foreground mb-4">Recent Workspaces</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {workspaces.slice(0, 3).map((ws) => {
+                  const memberCount = ws._count?.members ?? ws.members?.length ?? 0
+                  const channelCount = ws._count?.channels ?? ws.channels?.length ?? 0
+                  const myRole = ws.members?.find((m) => m.userId === user?.id)?.role || 'member'
+                  const gradient = getGradientFromName(ws.name)
+                  const memberAvatars = ws.members?.slice(0, 4) || []
 
-              return (
-                <motion.div key={ws.id} variants={fadeUp}>
-                  <Card
-                    className="hover:shadow-lg transition-all duration-300 cursor-pointer hover:border-primary/30 group hover:-translate-y-0.5"
-                    onClick={() => handleOpenWorkspace(ws.id)}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={`flex size-10 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white text-sm font-bold shrink-0`}>
-                            {getInitials(ws.name)}
+                  return (
+                    <motion.div
+                      key={ws.id}
+                      whileHover={{ y: -3 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Card
+                        className="hover:shadow-xl transition-all duration-300 cursor-pointer hover:border-primary/30 group overflow-hidden"
+                        onClick={() => handleOpenWorkspace(ws.id)}
+                      >
+                        {/* Gradient header */}
+                        <div className={`h-20 bg-gradient-to-br ${gradient} relative`}>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-3xl font-bold text-white/30">{getInitials(ws.name)}</span>
                           </div>
-                          <div className="min-w-0">
-                            <CardTitle className="text-base truncate group-hover:text-primary transition-colors">
-                              {ws.name}
-                            </CardTitle>
-                            {ws.description && (
-                              <CardDescription className="text-xs line-clamp-1">
-                                {ws.description}
-                              </CardDescription>
-                            )}
+                          <div className="absolute top-2 right-2">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-7 bg-white/20 hover:bg-white/30 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreHorizontal className="size-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                {myRole === 'owner' && (
+                                  <DropdownMenuItem
+                                    onClick={() => setDeleteId(ws.id)}
+                                    className="text-destructive focus:text-destructive cursor-pointer"
+                                  >
+                                    <Trash2 className="size-4 mr-2" />
+                                    Delete Workspace
+                                  </DropdownMenuItem>
+                                )}
+                                {myRole !== 'owner' && (
+                                  <DropdownMenuItem
+                                    onClick={() => setLeaveId(ws.id)}
+                                    className="text-destructive focus:text-destructive cursor-pointer"
+                                  >
+                                    <LogOut className="size-4 mr-2" />
+                                    Leave Workspace
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            {myRole === 'owner' && (
-                              <DropdownMenuItem
-                                onClick={() => setDeleteId(ws.id)}
-                                className="text-destructive focus:text-destructive cursor-pointer"
-                              >
-                                <Trash2 className="size-4 mr-2" />
-                                Delete Workspace
-                              </DropdownMenuItem>
-                            )}
-                            {myRole !== 'owner' && (
-                              <DropdownMenuItem
-                                onClick={() => setLeaveId(ws.id)}
-                                className="text-destructive focus:text-destructive cursor-pointer"
-                              >
-                                <LogOut className="size-4 mr-2" />
-                                Leave Workspace
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                        <div className="flex items-center gap-1">
-                          <Users className="size-3.5" />
-                          {memberCount} {memberCount === 1 ? 'member' : 'members'}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Hash className="size-3.5" />
-                          {channelCount} {channelCount === 1 ? 'channel' : 'channels'}
-                        </div>
-                      </div>
-
-                      {/* Member avatars row */}
-                      {memberAvatars.length > 0 && (
-                        <div className="flex items-center mb-3">
-                          <div className="flex -space-x-2">
-                            {memberAvatars.map((member) => (
-                              <Avatar key={member.id} className="size-6 border-2 border-background">
-                                <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
-                                  {member.user?.name ? getInitials(member.user.name) : '?'}
-                                </AvatarFallback>
-                              </Avatar>
-                            ))}
-                          </div>
-                          {memberCount > 4 && (
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              +{memberCount - 4} more
-                            </span>
+                        <CardContent className="p-4">
+                          <CardTitle className="text-base truncate group-hover:text-primary transition-colors mb-1">
+                            {ws.name}
+                          </CardTitle>
+                          {ws.description && (
+                            <CardDescription className="text-xs line-clamp-1 mb-3">
+                              {ws.description}
+                            </CardDescription>
                           )}
-                        </div>
-                      )}
 
-                      <div className="flex items-center justify-between">
-                        <Badge variant={getRoleBadgeVariant(myRole)} className="capitalize text-xs">
-                          {myRole}
-                        </Badge>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="size-3" />
-                          {getRelativeTime(ws.updatedAt)}
-                        </div>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
+                            <div className="flex items-center gap-1">
+                              <Users className="size-3.5" />
+                              {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Hash className="size-3.5" />
+                              {channelCount} {channelCount === 1 ? 'channel' : 'channels'}
+                            </div>
+                          </div>
+
+                          {/* Member avatars row */}
+                          {memberAvatars.length > 0 && (
+                            <div className="flex items-center mb-3">
+                              <div className="flex -space-x-2">
+                                {memberAvatars.map((member) => (
+                                  <Avatar key={member.id} className="size-6 border-2 border-background">
+                                    <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
+                                      {member.user?.name ? getInitials(member.user.name) : '?'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ))}
+                              </div>
+                              {memberCount > 4 && (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  +{memberCount - 4} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between">
+                            <Badge variant={getRoleBadgeVariant(myRole)} className="capitalize text-xs">
+                              {myRole}
+                            </Badge>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Clock className="size-3" />
+                              {getRelativeTime(ws.updatedAt)}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )
+                })}
+
+                {/* Create workspace card */}
+                <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
+                  <Card
+                    className="border-dashed hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer h-full"
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    <CardContent className="flex flex-col items-center justify-center py-8">
+                      <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-3">
+                        <Plus className="size-6" />
                       </div>
+                      <p className="text-sm font-medium text-muted-foreground">New Workspace</p>
                     </CardContent>
                   </Card>
                 </motion.div>
-              )
-            })}
+              </div>
+            </motion.div>
 
-            {/* Create workspace card */}
-            <motion.div variants={fadeUp}>
-              <Card
-                className="border-dashed hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer h-full"
-                onClick={() => setCreateOpen(true)}
+            {/* Remaining workspaces (if more than 3) */}
+            {workspaces.length > 3 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mb-8"
               >
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-3">
-                    <Plus className="size-6" />
-                  </div>
-                  <p className="text-sm font-medium text-muted-foreground">New Workspace</p>
+                <h2 className="text-lg font-semibold text-foreground mb-4">All Workspaces</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {workspaces.slice(3).map((ws) => {
+                    const memberCount = ws._count?.members ?? ws.members?.length ?? 0
+                    const channelCount = ws._count?.channels ?? ws.channels?.length ?? 0
+                    const myRole = ws.members?.find((m) => m.userId === user?.id)?.role || 'member'
+                    const gradient = getGradientFromName(ws.name)
+
+                    return (
+                      <Card
+                        key={ws.id}
+                        className="hover:shadow-md transition-all duration-300 cursor-pointer hover:border-primary/30 group"
+                        onClick={() => handleOpenWorkspace(ws.id)}
+                      >
+                        <CardContent className="p-4 flex items-center gap-3">
+                          <div className={`flex size-10 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white text-sm font-bold shrink-0`}>
+                            {getInitials(ws.name)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="text-sm truncate group-hover:text-primary transition-colors">
+                              {ws.name}
+                            </CardTitle>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                              <span>{memberCount} members</span>
+                              <span>{channelCount} channels</span>
+                            </div>
+                          </div>
+                          <Badge variant={getRoleBadgeVariant(myRole)} className="capitalize text-[10px] shrink-0">
+                            {myRole}
+                          </Badge>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Recent Activity Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <h2 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h2>
+              <Card>
+                <CardContent className="p-0">
+                  {recentActivity.length === 0 ? (
+                    <div className="flex flex-col items-center py-8 text-muted-foreground">
+                      <Clock className="size-8 mb-2" />
+                      <p className="text-sm">No recent activity</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {recentActivity.map((activity, i) => (
+                        <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors">
+                          <div className={`flex size-8 items-center justify-center rounded-lg bg-muted ${activity.color}`}>
+                            <activity.icon className="size-4" />
+                          </div>
+                          <p className="text-sm text-foreground flex-1">{activity.text}</p>
+                          <span className="text-xs text-muted-foreground shrink-0">{activity.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
-          </motion.div>
-        )}
-
-        {/* Recent Activity Section */}
-        {workspaces.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <h2 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h2>
-            <Card>
-              <CardContent className="p-0">
-                {recentActivity.length === 0 ? (
-                  <div className="flex flex-col items-center py-8 text-muted-foreground">
-                    <Clock className="size-8 mb-2" />
-                    <p className="text-sm">No recent activity</p>
-                  </div>
-                ) : (
-                  <div className="divide-y">
-                    {recentActivity.map((activity, i) => (
-                      <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors">
-                        <div className={`flex size-8 items-center justify-center rounded-lg bg-muted ${activity.color}`}>
-                          <activity.icon className="size-4" />
-                        </div>
-                        <p className="text-sm text-foreground flex-1">{activity.text}</p>
-                        <span className="text-xs text-muted-foreground shrink-0">{activity.time}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
+          </>
         )}
       </main>
 

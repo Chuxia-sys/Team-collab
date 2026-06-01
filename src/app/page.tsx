@@ -8,10 +8,12 @@ import { LoginView } from '@/components/views/login-view'
 import { RegisterView } from '@/components/views/register-view'
 import { DashboardView } from '@/components/views/dashboard-view'
 import { WorkspaceView } from '@/components/views/workspace-view'
+import { CommandPalette } from '@/components/layout/command-palette'
+import { ProfileDialog } from '@/components/layout/profile-dialog'
 
 export default function Home() {
   const { initialized, user } = useAuthStore()
-  const { currentView } = useUIStore()
+  const { currentView, profileDialogOpen, setProfileDialogOpen } = useUIStore()
 
   // Initialize auth on mount
   useEffect(() => {
@@ -59,12 +61,15 @@ export default function Home() {
     }
   }
 
-  // Logged in views
-  switch (currentView) {
-    case 'workspace':
-      return <WorkspaceView />
-    case 'dashboard':
-    default:
-      return <DashboardView />
-  }
+  // Logged in views - with global dialogs
+  return (
+    <>
+      {currentView === 'workspace' ? <WorkspaceView /> : <DashboardView />}
+      <CommandPalette />
+      <ProfileDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+      />
+    </>
+  )
 }

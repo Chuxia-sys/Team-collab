@@ -13,6 +13,8 @@ interface UIState {
   currentPresentationId: string | null;
   currentTaskId: string | null;
   currentSubView: WorkspaceSubView;
+  commandPaletteOpen: boolean;
+  profileDialogOpen: boolean;
 }
 
 interface UIActions {
@@ -21,6 +23,8 @@ interface UIActions {
   setSidebarOpen: (open: boolean) => void;
   toggleMembersPanel: () => void;
   setMembersPanelOpen: (open: boolean) => void;
+  setCommandPaletteOpen: (open: boolean) => void;
+  setProfileDialogOpen: (open: boolean) => void;
 }
 
 export const useUIStore = create<UIState & UIActions>()(
@@ -36,6 +40,8 @@ export const useUIStore = create<UIState & UIActions>()(
       currentPresentationId: null,
       currentTaskId: null,
       currentSubView: 'home',
+      commandPaletteOpen: false,
+      profileDialogOpen: false,
 
       navigate: (view: AppView, params?: NavigateParams) => {
         const updates: Partial<UIState> = { currentView: view };
@@ -102,6 +108,14 @@ export const useUIStore = create<UIState & UIActions>()(
 
       setMembersPanelOpen: (open: boolean) => {
         set({ membersPanelOpen: open });
+      },
+
+      setCommandPaletteOpen: (open: boolean) => {
+        set({ commandPaletteOpen: open });
+      },
+
+      setProfileDialogOpen: (open: boolean) => {
+        set({ profileDialogOpen: open });
       },
     }),
     {

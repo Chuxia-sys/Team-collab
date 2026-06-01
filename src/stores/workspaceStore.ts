@@ -28,6 +28,7 @@ interface WorkspaceActions {
   inviteMember: (workspaceId: string, email: string, role?: string) => Promise<void>;
   updateMemberRole: (workspaceId: string, userId: string, role: string) => Promise<void>;
   removeMember: (workspaceId: string, userId: string) => Promise<void>;
+  joinWorkspace: (inviteCode: string) => Promise<Workspace | null>;
   clearError: () => void;
 }
 
@@ -280,6 +281,36 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>((set,
       });
     } catch {
       set({ error: 'Network error. Please try again.', isLoading: false });
+    }
+  },
+
+  joinWorkspace: async (inviteCode: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await fetch('/api/workspaces/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inviteCode }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        set({ error: data.error || 'Failed to join workspace', isLoading: false });
+        return null;
+      }
+
+      const workspace = data.workspace;
+      set((state) => ({
+        workspaces: [...state.workspaces, workspace],
+        workspaceRoles: { ...state.workspaceRoles, [workspace.id]: 'member' },
+        isLoading: false,
+      }));
+
+      return workspace;
+    } catch {
+      set({ error: 'Network error. Please try again.', isLoading: false });
+      return null;
     }
   },
 

@@ -1,13 +1,11 @@
 'use client'
 
-import { useState } from 'react'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
@@ -22,25 +20,24 @@ import {
 } from '@/components/ui/sidebar'
 import {
   Menu,
-  Search,
   Bell,
   Users,
   ChevronsUpDown,
   LogOut,
   LayoutDashboard,
   Settings,
+  UserCircle,
+  Search,
+  Keyboard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function AppHeader() {
-  const { currentWorkspaceId, currentSubView, toggleMembersPanel, membersPanelOpen, navigate } = useUIStore()
+  const { currentWorkspaceId, currentSubView, toggleMembersPanel, membersPanelOpen, navigate, setCommandPaletteOpen, setProfileDialogOpen } = useUIStore()
   const { user, logout } = useAuthStore()
   const { workspaces, currentWorkspace, switchWorkspace } = useWorkspaceStore()
   const { unreadCount } = useNotificationStore()
   const { openMobile, setOpenMobile } = useSidebar()
-
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearch, setShowSearch] = useState(false)
 
   const handleLogout = async () => {
     await logout()
@@ -78,6 +75,8 @@ export function AppHeader() {
       default: return ''
     }
   }
+
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone/.test(navigator.userAgent)
 
   return (
     <header className="flex h-14 items-center gap-2 border-b bg-background px-3 md:px-4">
@@ -141,25 +140,26 @@ export function AppHeader() {
 
       <div className="flex-1" />
 
-      {/* Search */}
-      <div className="hidden md:flex items-center max-w-xs w-full">
-        <div className="relative w-full">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-9 text-sm bg-muted/50 border-0 focus-visible:ring-1"
-          />
-        </div>
-      </div>
+      {/* Search Button with shortcut hint */}
+      <Button
+        variant="outline"
+        className="hidden md:flex items-center gap-2 h-9 px-3 text-muted-foreground hover:text-foreground bg-muted/50 border-0"
+        onClick={() => setCommandPaletteOpen(true)}
+      >
+        <Search className="size-4" />
+        <span className="text-sm">Search...</span>
+        <Keyboard className="size-3" />
+        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+          {isMac ? '⌘' : 'Ctrl'}K
+        </kbd>
+      </Button>
 
       {/* Mobile search toggle */}
       <Button
         variant="ghost"
         size="icon"
         className="md:hidden size-9"
-        onClick={() => setShowSearch(!showSearch)}
+        onClick={() => setCommandPaletteOpen(true)}
       >
         <Search className="size-4" />
       </Button>
@@ -219,6 +219,13 @@ export function AppHeader() {
             <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
           <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setProfileDialogOpen(true)}
+            className="cursor-pointer"
+          >
+            <UserCircle className="size-4 mr-2" />
+            Edit Profile
+          </DropdownMenuItem>
           {currentWorkspaceId && (
             <DropdownMenuItem
               onClick={() => navigate('workspace', { workspaceId: currentWorkspaceId, subView: 'settings' })}
@@ -242,22 +249,6 @@ export function AppHeader() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {/* Mobile search bar - appears below when toggled */}
-      {showSearch && (
-        <div className="absolute top-14 left-0 right-0 bg-background border-b p-2 md:hidden z-50">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-9 text-sm"
-              autoFocus
-            />
-          </div>
-        </div>
-      )}
     </header>
   )
 }

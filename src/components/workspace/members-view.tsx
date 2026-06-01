@@ -13,6 +13,7 @@ import {
   Crown,
   Trash2,
   Mail,
+  Circle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +53,7 @@ import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useRealtimeStore } from '@/stores/realtimeStore';
 import { toast } from '@/hooks/use-toast';
 
 const ROLE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
@@ -86,6 +88,7 @@ export function MembersView() {
   const { currentWorkspaceId } = useUIStore();
   const { members, workspaceRoles, loadMembers, inviteMember, updateMemberRole, removeMember, currentWorkspace } = useWorkspaceStore();
   const { user } = useAuthStore();
+  const userPresence = useRealtimeStore((s) => s.userPresence);
   const [searchQuery, setSearchQuery] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<string>('member');
@@ -100,6 +103,22 @@ export function MembersView() {
 
   const currentUserRole = currentWorkspaceId ? workspaceRoles[user?.id || ''] : null;
   const canManage = currentUserRole === 'owner' || currentUserRole === 'admin';
+
+  // Use real-time presence to determine online status
+  const getEffectiveStatus = (member: typeof members[0]) => {
+    const realtimeStatus = userPresence[member.userId]
+    if (realtimeStatus) return realtimeStatus
+    return member.user?.status || 'offline'
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'online': return 'bg-green-500'
+      case 'away': return 'bg-yellow-500'
+      case 'busy': return 'bg-red-500'
+      default: return 'bg-gray-400'
+    }
+  }
 
   const filteredMembers = members.filter((m) =>
     m.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -237,6 +256,7 @@ export function MembersView() {
                   canManage &&
                   !isCurrentUser &&
                   member.role !== 'owner';
+                const effectiveStatus = getEffectiveStatus(member);
 
                 return (
                   <motion.div
@@ -247,12 +267,19 @@ export function MembersView() {
                     transition={{ duration: 0.15, delay: index * 0.02 }}
                   >
                     <div className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/30">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={member.user?.avatar || undefined} />
-                        <AvatarFallback>
-                          {(member.user?.name || '??').slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={member.user?.avatar || undefined} />
+                          <AvatarFallback>
+                            {(member.user?.name || '??').slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        {/* Real-time online status dot */}
+                        <div className={cn(
+                          'absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full border-2 border-background',
+                          getStatusColor(effectiveStatus)
+                        )} />
+                      </div>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -264,6 +291,16 @@ export function MembersView() {
                               you
                             </Badge>
                           )}
+                          <span className={cn(
+                            'flex items-center gap-1 text-[10px] font-medium',
+                            effectiveStatus === 'online' ? 'text-green-600' : 'text-muted-foreground'
+                          )}>
+                            <Circle className={cn(
+                              'size-1.5 fill-current',
+                              effectiveStatus === 'online' ? 'text-green-600' : 'text-muted-foreground'
+                            )} />
+                            {effectiveStatus === 'online' ? 'Online' : effectiveStatus === 'away' ? 'Away' : effectiveStatus === 'busy' ? 'Busy' : 'Offline'}
+                          </span>
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {member.user?.email}

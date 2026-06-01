@@ -14,6 +14,18 @@ import {
   AlertTriangle,
   Loader2,
   Building2,
+  Bell,
+  Palette,
+  BarChart3,
+  MessageSquare,
+  FileText,
+  Table2,
+  Presentation,
+  ListTodo,
+  Hash,
+  Moon,
+  Sun,
+  Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +36,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -52,7 +64,7 @@ import { toast } from '@/hooks/use-toast';
 const ROLE_CONFIG: Record<string, { label: string; color: string }> = {
   owner: { label: 'Owner', color: 'bg-amber-100 text-amber-800 border-amber-300' },
   admin: { label: 'Admin', color: 'bg-red-100 text-red-800 border-red-300' },
-  moderator: { label: 'Moderator', color: 'bg-sky-100 text-sky-800 border-sky-300' },
+  moderator: { label: 'Moderator', color: 'bg-teal-100 text-teal-800 border-teal-300' },
   member: { label: 'Member', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
   guest: { label: 'Guest', color: 'bg-gray-100 text-gray-800 border-gray-300' },
 };
@@ -84,6 +96,14 @@ export function SettingsView() {
   const [description, setDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
+  const [notifications, setNotifications] = useState({
+    messages: true,
+    mentions: true,
+    tasks: true,
+    invites: true,
+    email: false,
+  });
 
   useEffect(() => {
     if (currentWorkspaceId) {
@@ -157,6 +177,14 @@ export function SettingsView() {
     }
   };
 
+  // Compute workspace stats
+  const workspaceStats = [
+    { icon: Users, label: 'Members', value: members.length, color: 'text-emerald-600 bg-emerald-50' },
+    { icon: MessageSquare, label: 'Channels', value: currentWorkspace?._count?.channels ?? 0, color: 'text-teal-600 bg-teal-50' },
+    { icon: FileText, label: 'Documents', value: currentWorkspace?._count?.documents ?? 0, color: 'text-primary bg-primary/10' },
+    { icon: ListTodo, label: 'Tasks', value: currentWorkspace?._count?.tasks ?? 0, color: 'text-amber-600 bg-amber-50' },
+  ];
+
   if (!currentWorkspace) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -168,7 +196,7 @@ export function SettingsView() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-6 py-4">
+      <div className="flex items-center justify-between border-b px-6 py-4 shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
             <Settings className="h-5 w-5 text-primary" />
@@ -197,8 +225,34 @@ export function SettingsView() {
             </div>
           </motion.div>
 
-          {/* General Settings */}
+          {/* Workspace Statistics */}
           <motion.div custom={1} variants={sectionVariants} initial="hidden" animate="visible">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  Workspace Statistics
+                </CardTitle>
+                <CardDescription>Overview of workspace activity</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {workspaceStats.map((stat) => (
+                    <div key={stat.label} className="flex flex-col items-center gap-2 rounded-lg border p-3 hover:shadow-sm transition-shadow">
+                      <div className={cn('flex size-10 items-center justify-center rounded-xl', stat.color)}>
+                        <stat.icon className="h-5 w-5" />
+                      </div>
+                      <span className="text-2xl font-bold">{stat.value}</span>
+                      <span className="text-xs text-muted-foreground">{stat.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* General Settings */}
+          <motion.div custom={2} variants={sectionVariants} initial="hidden" animate="visible">
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -248,7 +302,7 @@ export function SettingsView() {
           </motion.div>
 
           {/* Invite Link */}
-          <motion.div custom={2} variants={sectionVariants} initial="hidden" animate="visible">
+          <motion.div custom={3} variants={sectionVariants} initial="hidden" animate="visible">
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -289,8 +343,133 @@ export function SettingsView() {
             </Card>
           </motion.div>
 
+          {/* Notification Preferences */}
+          <motion.div custom={4} variants={sectionVariants} initial="hidden" animate="visible">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Bell className="h-4 w-4 text-primary" />
+                  Notification Preferences
+                </CardTitle>
+                <CardDescription>Choose what you want to be notified about</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between py-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">Direct Messages</Label>
+                    <p className="text-xs text-muted-foreground">Get notified when you receive a direct message</p>
+                  </div>
+                  <Switch
+                    checked={notifications.messages}
+                    onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, messages: checked }))}
+                  />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between py-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">Mentions</Label>
+                    <p className="text-xs text-muted-foreground">Get notified when someone mentions you</p>
+                  </div>
+                  <Switch
+                    checked={notifications.mentions}
+                    onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, mentions: checked }))}
+                  />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between py-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">Task Assignments</Label>
+                    <p className="text-xs text-muted-foreground">Get notified when a task is assigned to you</p>
+                  </div>
+                  <Switch
+                    checked={notifications.tasks}
+                    onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, tasks: checked }))}
+                  />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between py-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">Workspace Invites</Label>
+                    <p className="text-xs text-muted-foreground">Get notified when invited to a workspace</p>
+                  </div>
+                  <Switch
+                    checked={notifications.invites}
+                    onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, invites: checked }))}
+                  />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between py-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">Email Notifications</Label>
+                    <p className="text-xs text-muted-foreground">Receive email notifications for important updates</p>
+                  </div>
+                  <Switch
+                    checked={notifications.email}
+                    onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, email: checked }))}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Theme / Appearance */}
+          <motion.div custom={5} variants={sectionVariants} initial="hidden" animate="visible">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Palette className="h-4 w-4 text-primary" />
+                  Appearance
+                </CardTitle>
+                <CardDescription>Customize how TeamCollab looks for you</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Theme</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => setTheme('light')}
+                      className={cn(
+                        'flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all hover:shadow-sm',
+                        theme === 'light' ? 'border-primary bg-primary/5' : 'border-muted'
+                      )}
+                    >
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-white border shadow-sm">
+                        <Sun className="h-4 w-4 text-amber-500" />
+                      </div>
+                      <span className="text-xs font-medium">Light</span>
+                    </button>
+                    <button
+                      onClick={() => setTheme('dark')}
+                      className={cn(
+                        'flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all hover:shadow-sm',
+                        theme === 'dark' ? 'border-primary bg-primary/5' : 'border-muted'
+                      )}
+                    >
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-gray-900 border border-gray-700 shadow-sm">
+                        <Moon className="h-4 w-4 text-gray-300" />
+                      </div>
+                      <span className="text-xs font-medium">Dark</span>
+                    </button>
+                    <button
+                      onClick={() => setTheme('system')}
+                      className={cn(
+                        'flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all hover:shadow-sm',
+                        theme === 'system' ? 'border-primary bg-primary/5' : 'border-muted'
+                      )}
+                    >
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-white to-gray-900 border shadow-sm">
+                        <Monitor className="h-4 w-4 text-primary" />
+                      </div>
+                      <span className="text-xs font-medium">System</span>
+                    </button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
           {/* Members */}
-          <motion.div custom={3} variants={sectionVariants} initial="hidden" animate="visible">
+          <motion.div custom={6} variants={sectionVariants} initial="hidden" animate="visible">
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -396,7 +575,7 @@ export function SettingsView() {
 
           {/* Danger Zone */}
           {isOwner && (
-            <motion.div custom={4} variants={sectionVariants} initial="hidden" animate="visible">
+            <motion.div custom={7} variants={sectionVariants} initial="hidden" animate="visible">
               <Card className="border-destructive/40 shadow-none">
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center gap-2 text-base text-destructive">

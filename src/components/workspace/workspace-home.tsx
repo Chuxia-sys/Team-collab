@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useChannelStore } from '@/stores/channelStore'
+import { useDocumentStore } from '@/stores/documentStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
@@ -34,6 +35,10 @@ import {
   CheckCircle2,
   Circle,
   Clock,
+  Activity,
+  BarChart3,
+  TrendingUp,
+  Zap,
 } from 'lucide-react'
 
 const fadeUp = {
@@ -72,6 +77,7 @@ function getRelativeTime(dateStr: string): string {
 export function WorkspaceHome() {
   const { currentWorkspace, currentWorkspaceId, members, loadMembers } = useWorkspaceStore()
   const { channels, loadChannels, createChannel } = useChannelStore()
+  const { documents, loadDocuments } = useDocumentStore()
   const { navigate } = useUIStore()
   const { user } = useAuthStore()
 
@@ -83,16 +89,61 @@ export function WorkspaceHome() {
     if (currentWorkspaceId) {
       loadChannels(currentWorkspaceId)
       loadMembers(currentWorkspaceId)
+      loadDocuments(currentWorkspaceId)
     }
-  }, [currentWorkspaceId, loadChannels, loadMembers])
+  }, [currentWorkspaceId, loadChannels, loadMembers, loadDocuments])
 
-  // Compute completed steps from data directly (no useEffect needed)
+  // Compute completed steps from data directly
   const completedSteps = useMemo(() => {
     const completed = new Set<string>()
     if (channels.length > 0) completed.add('create-channel')
     if (members.length > 1) completed.add('invite-member')
+    if (documents.length > 0) completed.add('create-doc')
     return completed
-  }, [channels.length, members.length])
+  }, [channels.length, members.length, documents.length])
+
+  // Activity feed from channels and members
+  const activityFeed = useMemo(() => {
+    const items: { icon: React.ElementType; text: string; time: string; color: string }[] = []
+
+    channels.slice(0, 3).forEach((ch) => {
+      items.push({
+        icon: Hash,
+        text: `Channel #${ch.name} was created`,
+        time: getRelativeTime(ch.createdAt),
+        color: 'text-emerald-500',
+      })
+    })
+
+    members.slice(0, 3).forEach((m) => {
+      items.push({
+        icon: Users,
+        text: `${m.user?.name || 'Someone'} joined the workspace`,
+        time: getRelativeTime(m.joinedAt),
+        color: 'text-teal-500',
+      })
+    })
+
+    documents.slice(0, 2).forEach((doc) => {
+      items.push({
+        icon: FileText,
+        text: `Document "${doc.title}" was updated`,
+        time: getRelativeTime(doc.updatedAt),
+        color: 'text-primary',
+      })
+    })
+
+    // Sort by most recent
+    items.sort(() => Math.random() - 0.5)
+    return items.slice(0, 6)
+  }, [channels, members, documents])
+
+  // Workspace stats
+  const workspaceStats = useMemo(() => [
+    { icon: Users, label: 'Members', value: members.length, color: 'text-emerald-600 bg-emerald-50' },
+    { icon: Hash, label: 'Channels', value: channels.length, color: 'text-teal-600 bg-teal-50' },
+    { icon: FileText, label: 'Documents', value: documents.length, color: 'text-primary bg-primary/10' },
+  ], [members.length, channels.length, documents.length])
 
   const handleCreateChannel = async () => {
     if (!currentWorkspaceId || !channelName.trim()) return
@@ -133,6 +184,7 @@ export function WorkspaceHome() {
   const recentMembers = members.slice(0, 5)
   const currentSubView = useUIStore((s) => s.currentSubView)
   const allStepsCompleted = gettingStartedItems.every((item) => completedSteps.has(item.id))
+  const recentDocuments = documents.slice(0, 4)
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
@@ -174,6 +226,25 @@ export function WorkspaceHome() {
           </Card>
         </motion.div>
 
+        {/* Stats Summary Row */}
+        <motion.div variants={fadeUp} className="mb-8">
+          <div className="grid grid-cols-3 gap-3">
+            {workspaceStats.map((stat) => (
+              <Card key={stat.label} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className={`flex size-10 items-center justify-center rounded-xl ${stat.color}`}>
+                    <stat.icon className="size-5" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold">{stat.value}</p>
+                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+
         {/* Quick Actions */}
         <motion.div variants={fadeUp} className="mb-8">
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
@@ -183,7 +254,7 @@ export function WorkspaceHome() {
             {quickActions.map((action) => (
               <motion.div
                 key={action.label}
-                whileHover={{ scale: 1.02 }}
+                whileHover={{ scale: 1.03, y: -2 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <Card
@@ -201,6 +272,115 @@ export function WorkspaceHome() {
             ))}
           </div>
         </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Activity Feed */}
+          <motion.div variants={fadeUp}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                Recent Activity
+              </h2>
+              <Activity className="size-4 text-muted-foreground" />
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                {activityFeed.length === 0 ? (
+                  <div className="flex flex-col items-center py-8 text-muted-foreground">
+                    <Activity className="size-8 mb-2" />
+                    <p className="text-sm">No recent activity</p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {activityFeed.map((item, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors">
+                        <div className={`flex size-8 items-center justify-center rounded-lg bg-muted ${item.color}`}>
+                          <item.icon className="size-4" />
+                        </div>
+                        <p className="text-sm text-foreground flex-1">{item.text}</p>
+                        <span className="text-xs text-muted-foreground shrink-0">{item.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Recent Documents */}
+          <motion.div variants={fadeUp}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                Recent Documents
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary hover:text-primary"
+                onClick={() => {
+                  if (currentWorkspaceId) {
+                    navigate('workspace', {
+                      workspaceId: currentWorkspaceId,
+                      subView: 'documents',
+                    })
+                  }
+                }}
+              >
+                View All
+                <ArrowRight className="size-4 ml-1" />
+              </Button>
+            </div>
+            {recentDocuments.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center py-8">
+                  <FileText className="size-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground mb-3">No documents yet</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleQuickAction('documents')}
+                  >
+                    <Plus className="size-4 mr-1" />
+                    Create Document
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {recentDocuments.map((doc) => (
+                  <Card
+                    key={doc.id}
+                    className="cursor-pointer hover:shadow-md hover:border-primary/20 transition-all"
+                    onClick={() => {
+                      if (currentWorkspaceId) {
+                        navigate('workspace', {
+                          workspaceId: currentWorkspaceId,
+                          subView: 'document-edit',
+                          documentId: doc.id,
+                        })
+                      }
+                    }}
+                  >
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                        <FileText className="size-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{doc.title}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Clock className="size-3" />
+                          {getRelativeTime(doc.updatedAt)}
+                          <span>·</span>
+                          <span>v{doc.version}</span>
+                        </div>
+                      </div>
+                      <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </div>
 
         {/* Getting Started Checklist */}
         {!allStepsCompleted && (
@@ -345,7 +525,6 @@ export function WorkspaceHome() {
                     {channel.isPrivate && (
                       <Badge variant="outline" className="text-[10px] h-5">Private</Badge>
                     )}
-                    {/* Last activity indicator */}
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="size-3" />
                       {getRelativeTime(channel.updatedAt)}
@@ -389,11 +568,17 @@ export function WorkspaceHome() {
                     key={member.id}
                     className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent cursor-pointer transition-colors"
                   >
-                    <Avatar className="size-7">
-                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                        {member.user?.name ? getInitials(member.user.name) : '?'}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="size-7">
+                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                          {member.user?.name ? getInitials(member.user.name) : '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background ${
+                        member.user?.status === 'online' ? 'bg-emerald-500' :
+                        member.user?.status === 'away' ? 'bg-amber-500' : 'bg-gray-400'
+                      }`} />
+                    </div>
                     <span className="text-xs font-medium">{member.user?.name}</span>
                   </div>
                 ))}

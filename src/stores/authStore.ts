@@ -13,6 +13,7 @@ interface AuthActions {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (data: { name?: string; avatar?: string | null }) => Promise<void>;
   clearError: () => void;
 }
 
@@ -104,6 +105,35 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     // Navigate to landing after logout
     const { useUIStore } = await import('./uiStore');
     useUIStore.getState().navigate('landing');
+  },
+
+  updateProfile: async (data: { name?: string; avatar?: string | null }) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const responseData = await res.json();
+
+      if (!res.ok) {
+        set({ error: responseData.error || 'Failed to update profile', isLoading: false });
+        throw new Error(responseData.error || 'Failed to update profile');
+      }
+
+      set((state) => ({
+        user: state.user ? { ...state.user, ...responseData.user } : null,
+        isLoading: false,
+        error: null,
+      }));
+    } catch (err) {
+      if (err instanceof Error && err.message !== 'Failed to update profile') {
+        set({ error: 'Network error. Please try again.', isLoading: false });
+      }
+      throw err;
+    }
   },
 
   clearError: () => set({ error: null }),
