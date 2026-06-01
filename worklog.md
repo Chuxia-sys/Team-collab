@@ -422,3 +422,246 @@ To enable Google Sign-In, users need to:
 3. Add password reset functionality with actual email sending
 4. Add two-factor authentication (2FA) option
 5. Add account settings page (change email, link/unlink Google account, delete account)
+
+---
+Task ID: 6-3b
+Agent: Feature Addition Agent
+Task: Activity feed, workspace stats, user status selector
+
+Work Log:
+- Created Activity API endpoint (GET /api/workspaces/[id]/activity/route.ts):
+  - Queries channels, members, documents, spreadsheets, presentations, and tasks tables for recent events
+  - Returns 8 activity types: channel_created, member_joined, document_created, spreadsheet_created, presentation_created, task_completed, task_assigned, message_sent
+  - Aggregates messages by day for message_sent type
+  - Sorts all activities by timestamp and returns top 20 most recent
+  - Each activity includes: id, type, description, userName, timestamp, metadata
+- Created Stats API endpoint (GET /api/workspaces/[id]/stats/route.ts):
+  - Returns messages this week vs last week (with trend %)
+  - Returns active members count (who sent messages in last 7 days vs last week, with trend %)
+  - Returns documents created this week vs last week (with trend %)
+  - Returns tasks completed this week vs last week (with trend %)
+  - Returns total tasks, completed tasks, in-progress tasks, todo tasks
+  - Returns total members, channels, documents counts
+  - Returns channel activity breakdown (message count per channel this week)
+- Created Status API endpoint (PATCH /api/auth/status/route.ts):
+  - Validates status value (online, away, busy, offline)
+  - Updates user status in database
+  - Returns updated user object
+- Created ActivityFeed component (activity-feed.tsx):
+  - Fetches real activity data from the API endpoint
+  - Color-coded activity type icons (8 types with distinct colors)
+  - Relative timestamps ("2 minutes ago", "1h ago", etc.)
+  - Framer Motion animated entry (slide in from left with staggered delays)
+  - "View All" expandable button to show all activities (default shows 6)
+  - Loading skeleton state with pulse animation
+  - Empty state with Activity icon
+- Created WorkspaceStatsGrid component (workspace-stats-grid.tsx):
+  - 4 main stat cards with animated number counters (AnimatedCounter component with ease-out cubic animation)
+  - Trend indicators (TrendingUp/TrendingDown icons with green/red colors and percentage)
+  - Overview row showing total Members, Channels, Documents
+  - Task progress bar with animated segments (Done/In Progress/To Do)
+  - Channel activity breakdown with horizontal bar charts
+  - Staggered entry animations with Framer Motion
+  - Loading skeleton states
+- Integrated ActivityFeed and WorkspaceStatsGrid into workspace-home.tsx:
+  - Replaced mock activity data with real API-powered ActivityFeed component
+  - Replaced simple stats row with full WorkspaceStatsGrid component
+  - Maintained all existing sections (welcome banner, quick actions, recent documents, getting started, channels, members)
+  - Added busy status dot color (red) to members preview
+- Added updateStatus method to authStore:
+  - Calls PATCH /api/auth/status with selected status
+  - Updates local user state optimistically on success
+  - Error handling with console logging
+- Updated app-header.tsx with user status selector:
+  - Status dot on avatar (green for online, amber for away, red for busy, gray for offline)
+  - "Set Status" section in user dropdown menu with DropdownMenuGroup and DropdownMenuLabel
+  - 4 status options with emoji indicators: 🟢 Online, 🟡 Away, 🔴 Busy, ⚫ Offline
+  - Current status highlighted with checkmark and bg-accent
+  - Clicking a status option calls updateStatus from authStore
+- All changes pass lint with zero errors
+
+Stage Summary:
+- 3 new features fully implemented and integrated:
+  1. **Activity Feed System**: Real API-powered activity feed showing channel creations, member joins, document/spreadsheet/presentation creations, task completions/assignments, and aggregated message counts — all sorted by time with animated entry and expandable view
+  2. **Workspace Statistics Dashboard**: Comprehensive stats grid with animated counters, trend indicators (up/down arrows with percentages), task progress bar, and channel activity breakdown — all powered by real database queries comparing this week vs last week
+  3. **User Status Selector**: Status dropdown in app header with 4 options (online/away/busy/offline), persisted to database via PATCH API, status dot visible on avatar and in members preview
+
+### New Files:
+- `src/app/api/workspaces/[id]/activity/route.ts` - Activity feed API endpoint
+- `src/app/api/workspaces/[id]/stats/route.ts` - Workspace statistics API endpoint
+- `src/app/api/auth/status/route.ts` - User status update API endpoint
+- `src/components/workspace/activity-feed.tsx` - ActivityFeed component
+- `src/components/workspace/workspace-stats-grid.tsx` - WorkspaceStatsGrid component with AnimatedCounter
+
+### Modified Files:
+- `src/components/workspace/workspace-home.tsx` - Integrated ActivityFeed and WorkspaceStatsGrid, replaced mock data
+- `src/components/layout/app-header.tsx` - Added status selector dropdown with status dot on avatar
+- `src/stores/authStore.ts` - Added updateStatus method
+
+---
+Task ID: 6-3a
+Agent: Styling & Feature Agent
+Task: Styling improvements and new feature additions
+
+Work Log:
+- Read worklog.md to understand prior work (Tasks 1-6)
+- Read all 5 key component files to understand current state
+- Read uiStore, types, and existing hooks
+
+### Styling Improvements:
+
+1. **Landing Page** (`landing-view.tsx`):
+   - Added animated testimonial section with 6 user testimonials including avatars, quotes, star ratings, names, roles, and companies
+   - Added `AnimatedCounter` component that counts up numbers when scrolled into view (2,500+ teams)
+   - Replaced static stats with animated counters (2,500+ Active Teams, 50K+ Messages Daily, 99.9% Uptime, 4.9/5 Rating)
+   - Enhanced footer with 5-column grid layout, newsletter signup form with email input and subscribe button
+   - Added social links (Twitter, Github, Linkedin) in footer
+   - Added hover animation on footer links with ChevronRight reveal
+   - Added Testimonials nav link in header
+   - Added icons to stat cards (Users, MessageSquare, TrendingUp, Award)
+   - Added "Stay updated" section with success state
+
+2. **Dashboard View** (`dashboard-view.tsx`):
+   - Added `OnboardingModal` component with 5-step step-by-step guide (Welcome, Create Workspace, Invite Members, Start Channel, Explore Features)
+   - Onboarding auto-appears for first-time users (no workspaces, hasn't seen onboarding)
+   - Onboarding state persisted via `onboardingSeen` in uiStore
+   - Added step indicator dots and animated transitions between steps
+   - Enhanced empty state with animated concentric circle illustration and floating icons
+   - Added "Take the Tour" button in empty state
+   - Added "Quick Start Guide" button in header for returning users
+   - Enhanced Recent Activity section with timeline dots and line connector
+   - Added type badges (workspace, member, channel) and Clock icons to activity items
+   - Added event count badge next to "Recent Activity" heading
+
+3. **Workspace Home** (`workspace-home.tsx`):
+   - Added "Keyboard Shortcuts" button in Quick Actions header that opens shortcuts dialog
+   - Added Workspace Health section with 3 cards:
+     - Activity Score (0-100 with progress bar and Healthy/Moderate/Low badge)
+     - Task Completion Rate (percentage with progress bar and task count)
+     - Overview (Members/Channels/Documents counts)
+   - Replaced Quick Actions with contextual actions: Create Channel, Add Member, New Document, New Task
+   - Added Progress bar to Getting Started checklist showing completion percentage
+   - Added Heart icon and progress summary to Getting Started section
+   - Integrated taskStore for health indicator calculations
+
+### New Features:
+
+1. **Keyboard Shortcuts Help Panel** (`keyboard-shortcuts-dialog.tsx`):
+   - Opens with `?` key or `Ctrl+/` / `Cmd+/`
+   - Shows 4 shortcut groups: Navigation, Workspace, Messaging, Quick Actions
+   - Keyboard-aware key display (⌘ on Mac, Ctrl on Windows)
+   - Styled `<kbd>` elements for each shortcut key
+   - Mac/Windows detection for proper key display
+   - Footer showing how to toggle the panel
+   - Added `keyboardShortcutsOpen` and `setKeyboardShortcutsOpen` to uiStore
+
+2. **Notification Sound Toggle** (`use-notification-sound.ts`):
+   - Custom hook with Web Audio API beep generation
+   - Pleasant notification tone using oscillator with frequency sweep (880→1100→1320 Hz)
+   - Smooth volume envelope (fade in, sustain, fade out over 250ms)
+   - Saves preference to localStorage
+   - Lazy AudioContext creation (respects autoplay policy)
+   - Auto-resumes suspended AudioContext
+   - Test button to preview sound
+   - Added to Settings view: "Notification Sounds" toggle with Volume2/VolumeX icons, Test button
+   - Added `useNotificationSound` import and usage in SettingsView
+
+3. **Message Search within Channel** (`channel-view.tsx`):
+   - Search toggle button in channel header (Search icon)
+   - Animated search bar slides down when opened
+   - Real-time message filtering by search query
+   - `HighlightedText` component that wraps matching text in `<mark>` tags with primary/20 background
+   - Navigation through search results with up/down buttons
+   - Shows current result index and total count ("1 of 5")
+   - Auto-scrolls to matched message with smooth scroll
+   - Current match highlighted with ring-2 border, other matches with subtle background
+   - Enter/Shift+Enter to navigate between results
+   - Clear button to reset search
+   - Search bar placeholder includes channel name
+
+### Global Integration:
+- Added `keyboardShortcutsOpen` and `onboardingSeen` state to uiStore with proper persistence
+- Mounted `KeyboardShortcutsDialog` globally in page.tsx for logged-in users
+- All changes pass `bun run lint` with zero errors
+
+Stage Summary:
+- 3 major styling improvements across Landing, Dashboard, and Workspace Home views
+- 3 new features implemented: Keyboard Shortcuts Dialog, Notification Sound Toggle, Message Search
+- New files: keyboard-shortcuts-dialog.tsx, use-notification-sound.ts
+- Modified files: landing-view.tsx, dashboard-view.tsx, workspace-home.tsx, channel-view.tsx, settings-view.tsx, page.tsx, uiStore.ts
+- Green theme (#468432 primary) maintained throughout — no indigo/blue as primary
+- Used existing shadcn/ui components (Dialog, Switch, Input, Badge, Progress, Button, etc.)
+- Framer Motion animations for onboarding steps, search bar, testimonials entry
+- TypeScript throughout with strict typing
+- Responsive design (mobile-first)
+- No new API routes created — works with existing ones
+- Lint passes cleanly with zero errors
+
+---
+Task ID: 6
+Agent: Main Agent (QA & Coordination)
+Task: QA assessment, session cookie fix, styling enhancements, and feature additions - Round 4
+
+Work Log:
+- Performed QA testing via agent-browser across Landing, Login, and Dashboard views
+- **CRITICAL BUG FOUND AND FIXED**: Session cookies were not being properly set using the Next.js cookies API
+  - Old approach: Used raw `Set-Cookie` headers via `NextResponse.json({ headers: { 'Set-Cookie': cookie } })`
+  - New approach: Uses `cookies().set()` from `next/headers` which properly sets cookies in the response
+  - Updated `setSessionCookie()` and `clearSessionCookie()` to be async functions using the Next.js cookies API
+  - Updated all auth routes (login, register, logout, google) to use the new async cookie functions
+  - Verified fix via curl: registration returns 201, subsequent /me returns 200 with user data
+- Verified login flow works via agent-browser: Landing → Login → Dashboard shows "Good morning, QA!"
+- Disabled Prisma query logging (removed `log: ['query']`) to reduce server overhead
+- Coordinated 2 parallel subagent tasks (6-3a, 6-3b) all completed successfully
+- Verified all new API endpoints work:
+  - Activity API: Returns channel_created, member_joined events
+  - Stats API: Returns messages, members, documents, tasks trends
+  - Status API: Updates user status to online/away/busy/offline
+- Final lint check passes with zero errors
+
+Stage Summary:
+- **1 critical bug fixed**: Session cookie authentication now works correctly using Next.js cookies API
+- **2 subagent tasks completed**:
+  - Task 6-3a: 3 styling improvements + 3 new features (Keyboard Shortcuts, Notification Sound, Message Search)
+  - Task 6-3b: 3 new features (Activity Feed, Workspace Stats Grid, User Status Selector)
+- All API endpoints verified working
+- Lint passes cleanly
+
+### Current Project Status:
+- **Feature-rich** team collaboration platform with:
+  - Auth (login/register/logout with proper session cookies, Google Sign-In with Firebase)
+  - Dashboard with onboarding modal, time-aware greeting, stats, workspace management
+  - Workspaces with sidebar navigation, workspace switching, real-time stats
+  - Channels with real-time messaging, typing indicators, emoji, reactions, bookmarks, message search
+  - Tasks with Kanban board, drag-and-drop, filters
+  - Documents with markdown toolbar, version tracking, grid/list view, sort options
+  - Spreadsheets with mini table preview, row/column editing, grid/list view
+  - Presentations with slide thumbnails, fullscreen mode, grid/list view
+  - Notifications with date grouping, mark-as-read, sound toggle
+  - Members with role management, real-time online status, status selector
+  - Settings with workspace stats, notification prefs, theme selection, sound toggle
+  - Global search (Cmd+K) across all entity types
+  - User profile editing with avatar colors
+  - Workspace invite/join flow
+  - Emoji picker for messages
+  - WebSocket real-time messaging service
+  - Keyboard shortcuts help panel (? or Ctrl+/)
+  - Activity feed with real data
+  - Workspace statistics dashboard with trends
+  - User status selector (online/away/busy/offline)
+  - Animated testimonials on landing page
+  - Onboarding modal for new users
+
+### Unresolved Issues / Risks:
+- Google Sign-In requires Firebase credentials in .env
+- Real-time WebSocket features require chat-service on port 3003
+- No file upload/attachment support yet
+- Password reset shows toast but doesn't send emails
+- Theme preference saves locally only
+
+### Priority Recommendations for Next Phase:
+1. Add file upload/attachment support for messages
+2. Add message threading (expand reply threads into full conversation view)
+3. Add password reset with actual email sending
+4. Add drag-and-drop file upload for documents
+5. Add two-factor authentication (2FA) option

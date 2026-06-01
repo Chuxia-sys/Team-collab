@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { clearSessionCookie, getAuthUser } from '@/lib/auth';
+import { getAuthUser, clearSessionCookie } from '@/lib/auth';
 import { db } from '@/lib/db';
 
 export async function POST() {
@@ -12,10 +12,12 @@ export async function POST() {
       });
     }
 
-    const cookie = clearSessionCookie();
+    // Clear session cookie using Next.js cookies API
+    await clearSessionCookie();
+
     return NextResponse.json(
       { message: 'Logged out successfully' },
-      { status: 200, headers: { 'Set-Cookie': cookie } }
+      { status: 200 }
     );
   } catch (error) {
     console.error('Logout error:', error);

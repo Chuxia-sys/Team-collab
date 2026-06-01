@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Progress } from '@/components/ui/progress'
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,14 @@ import {
   Moon,
   Coffee,
   Link2,
+  Rocket,
+  ChevronRight,
+  CheckCircle2,
+  Circle,
+  X,
+  Compass,
+  Lightbulb,
+  MessageCircle,
 } from 'lucide-react'
 import { JoinWorkspaceDialog } from '@/components/workspace/join-workspace-dialog'
 
@@ -136,10 +145,140 @@ function MiniSparkline({ data, color = '#468432' }: { data: number[]; color?: st
   )
 }
 
+// Onboarding steps
+const onboardingSteps = [
+  {
+    icon: Rocket,
+    title: 'Welcome to TeamCollab!',
+    description: 'Your all-in-one collaboration platform. Let\'s get you set up in just a few steps.',
+  },
+  {
+    icon: LayoutDashboard,
+    title: 'Create a Workspace',
+    description: 'Workspaces are where your team organizes projects, channels, and documents. Create one to get started.',
+  },
+  {
+    icon: Users,
+    title: 'Invite Team Members',
+    description: 'Collaboration is better together. Share your workspace invite code with your team.',
+  },
+  {
+    icon: Hash,
+    title: 'Start a Channel',
+    description: 'Channels are where conversations happen. Create channels for topics, projects, or teams.',
+  },
+  {
+    icon: Compass,
+    title: 'Explore Features',
+    description: 'Check out documents, spreadsheets, presentations, and tasks within your workspace.',
+  },
+]
+
+// Onboarding Modal Component
+function OnboardingModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [step, setStep] = useState(0)
+  const { setOnboardingSeen } = useUIStore()
+
+  const handleFinish = () => {
+    setOnboardingSeen(true)
+    onOpenChange(false)
+  }
+
+  const handleSkip = () => {
+    setOnboardingSeen(true)
+    onOpenChange(false)
+  }
+
+  const currentStep = onboardingSteps[step]
+  const StepIcon = currentStep.icon
+  const isLastStep = step === onboardingSteps.length - 1
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleSkip(); onOpenChange(v) }}>
+      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <div className="relative">
+          {/* Skip button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute -top-2 -right-2 text-muted-foreground"
+            onClick={handleSkip}
+          >
+            Skip
+            <ChevronRight className="size-4" />
+          </Button>
+
+          {/* Step indicator */}
+          <div className="flex items-center justify-center gap-2 mb-6 pt-2">
+            {onboardingSteps.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setStep(i)}
+                className={`rounded-full transition-all duration-300 ${
+                  i === step
+                    ? 'w-8 h-2 bg-primary'
+                    : i < step
+                    ? 'w-2 h-2 bg-primary/60'
+                    : 'w-2 h-2 bg-muted-foreground/20'
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Step content with animation */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="text-center py-4"
+            >
+              <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 mx-auto mb-4">
+                <StepIcon className="size-8 text-primary" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-2">{currentStep.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+                {currentStep.description}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Navigation buttons */}
+          <div className="flex items-center justify-between mt-6">
+            <Button
+              variant="ghost"
+              onClick={() => setStep(Math.max(0, step - 1))}
+              disabled={step === 0}
+            >
+              Back
+            </Button>
+            <div className="text-xs text-muted-foreground">
+              {step + 1} of {onboardingSteps.length}
+            </div>
+            {isLastStep ? (
+              <Button onClick={handleFinish} className="bg-primary hover:bg-primary/90">
+                Get Started
+                <Rocket className="size-4 ml-1" />
+              </Button>
+            ) : (
+              <Button onClick={() => setStep(step + 1)} className="bg-primary hover:bg-primary/90">
+                Next
+                <ChevronRight className="size-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function DashboardView() {
   const { user, logout } = useAuthStore()
   const { workspaces, loadWorkspaces, createWorkspace, deleteWorkspace, leaveWorkspace, isLoading } = useWorkspaceStore()
-  const { navigate } = useUIStore()
+  const { navigate, onboardingSeen, setOnboardingSeen } = useUIStore()
 
   const [createOpen, setCreateOpen] = useState(false)
   const [wsName, setWsName] = useState('')
@@ -147,10 +286,19 @@ export function DashboardView() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [leaveId, setLeaveId] = useState<string | null>(null)
   const [joinOpen, setJoinOpen] = useState(false)
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
 
   useEffect(() => {
     loadWorkspaces()
   }, [loadWorkspaces])
+
+  // Show onboarding for first-time users (no workspaces and haven't seen it)
+  useEffect(() => {
+    if (!onboardingSeen && workspaces.length === 0) {
+      const timer = setTimeout(() => setOnboardingOpen(true), 800)
+      return () => clearTimeout(timer)
+    }
+  }, [onboardingSeen, workspaces.length])
 
   const handleCreate = async () => {
     if (!wsName.trim()) return
@@ -228,9 +376,9 @@ export function DashboardView() {
     { icon: Hash, label: 'Total Channels', value: stats.channels, color: 'bg-amber-500/10 text-amber-600', sparkline: sparklineData.channels, sparkColor: '#d97706' },
   ]
 
-  // Generate recent activity based on workspaces
+  // Generate recent activity based on workspaces with timeline dots
   const recentActivity = useMemo(() => {
-    const activities: { icon: React.ElementType; text: string; time: string; color: string }[] = []
+    const activities: { icon: React.ElementType; text: string; time: string; color: string; type: string }[] = []
     workspaces.forEach((ws) => {
       const memberCount = ws._count?.members ?? ws.members?.length ?? 0
       const channelCount = ws._count?.channels ?? ws.channels?.length ?? 0
@@ -239,6 +387,7 @@ export function DashboardView() {
         text: `Workspace "${ws.name}" was created`,
         time: getRelativeTime(ws.createdAt),
         color: 'text-emerald-500',
+        type: 'workspace',
       })
       if (memberCount > 0) {
         activities.push({
@@ -246,6 +395,7 @@ export function DashboardView() {
           text: `${memberCount} member${memberCount > 1 ? 's' : ''} joined "${ws.name}"`,
           time: getRelativeTime(ws.updatedAt),
           color: 'text-teal-500',
+          type: 'member',
         })
       }
       if (channelCount > 0) {
@@ -254,10 +404,11 @@ export function DashboardView() {
           text: `${channelCount} channel${channelCount > 1 ? 's' : ''} created in "${ws.name}"`,
           time: getRelativeTime(ws.updatedAt),
           color: 'text-amber-500',
+          type: 'channel',
         })
       }
     })
-    return activities.slice(0, 6)
+    return activities.slice(0, 8)
   }, [workspaces])
 
   return (
@@ -308,18 +459,31 @@ export function DashboardView() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-              <GreetingIcon className="size-5 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+                <GreetingIcon className="size-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                  {greeting.text}, {user?.name?.split(' ')[0] || 'there'}!
+                </h1>
+                <p className="text-muted-foreground">
+                  Manage your workspaces and start collaborating with your team.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                {greeting.text}, {user?.name?.split(' ')[0] || 'there'}!
-              </h1>
-              <p className="text-muted-foreground">
-                Manage your workspaces and start collaborating with your team.
-              </p>
-            </div>
+            {!onboardingSeen && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOnboardingOpen(true)}
+                className="hidden sm:flex items-center gap-1.5 shrink-0"
+              >
+                <Lightbulb className="size-4 text-primary" />
+                Quick Start Guide
+              </Button>
+            )}
           </div>
         </motion.div>
 
@@ -347,44 +511,6 @@ export function DashboardView() {
             </motion.div>
           ))}
         </motion.div>
-
-        {/* Quick-start section for new users */}
-        {workspaces.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mb-8"
-          >
-            <Card className="border-primary/20 bg-primary/5">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-                    <Zap className="size-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Get Started</h3>
-                    <p className="text-sm text-muted-foreground">Create your first workspace to begin collaborating</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="flex items-center gap-3 rounded-lg border bg-background p-3">
-                    <div className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">1</div>
-                    <span className="text-sm">Create a workspace</span>
-                  </div>
-                  <div className="flex items-center gap-3 rounded-lg border bg-background p-3">
-                    <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground text-sm font-bold shrink-0">2</div>
-                    <span className="text-sm">Invite team members</span>
-                  </div>
-                  <div className="flex items-center gap-3 rounded-lg border bg-background p-3">
-                    <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground text-sm font-bold shrink-0">3</div>
-                    <span className="text-sm">Start collaborating</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
 
         {/* Actions */}
         <div className="flex items-center gap-3 mb-6">
@@ -442,29 +568,75 @@ export function DashboardView() {
           />
         </div>
 
-        {/* Workspaces Grid - Larger cards */}
+        {/* Workspaces Grid */}
         {workspaces.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
+            {/* Enhanced empty state with illustration */}
             <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-16">
-                <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
-                  <FolderOpen className="size-8" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">No workspaces yet</h3>
+              <CardContent className="flex flex-col items-center justify-center py-16 px-6">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.3, type: 'spring' }}
+                  className="relative mb-6"
+                >
+                  {/* Illustration - concentric circles */}
+                  <div className="relative size-28">
+                    <motion.div
+                      className="absolute inset-0 rounded-full border-2 border-dashed border-primary/20"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+                    />
+                    <motion.div
+                      className="absolute inset-2 rounded-full border-2 border-dashed border-primary/30"
+                      animate={{ rotate: -360 }}
+                      transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
+                    />
+                    <div className="absolute inset-4 rounded-full bg-primary/10 flex items-center justify-center">
+                      <FolderOpen className="size-10 text-primary" />
+                    </div>
+                  </div>
+                  {/* Floating elements around illustration */}
+                  <motion.div
+                    className="absolute -top-2 -right-2 flex size-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600"
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Users className="size-4" />
+                  </motion.div>
+                  <motion.div
+                    className="absolute -bottom-2 -left-2 flex size-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600"
+                    animate={{ y: [0, 5, 0] }}
+                    transition={{ duration: 2.5, repeat: Infinity }}
+                  >
+                    <Hash className="size-4" />
+                  </motion.div>
+                </motion.div>
+
+                <h3 className="text-xl font-semibold mb-2">No workspaces yet</h3>
                 <p className="text-sm text-muted-foreground mb-6 text-center max-w-sm">
                   Create your first workspace to start collaborating with your team. You can invite members and organize your projects.
                 </p>
-                <Button
-                  onClick={() => setCreateOpen(true)}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  <Plus className="size-4 mr-2" />
-                  Create Your First Workspace
-                </Button>
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <Button
+                    onClick={() => setCreateOpen(true)}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <Plus className="size-4 mr-2" />
+                    Create Your First Workspace
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setOnboardingOpen(true)}
+                  >
+                    <Compass className="size-4 mr-2" />
+                    Take the Tour
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -655,13 +827,16 @@ export function DashboardView() {
               </motion.div>
             )}
 
-            {/* Recent Activity Section */}
+            {/* Recent Activity Section - Enhanced Timeline */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <h2 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
+                <Badge variant="outline" className="text-xs">{recentActivity.length} events</Badge>
+              </div>
               <Card>
                 <CardContent className="p-0">
                   {recentActivity.length === 0 ? (
@@ -670,16 +845,30 @@ export function DashboardView() {
                       <p className="text-sm">No recent activity</p>
                     </div>
                   ) : (
-                    <div className="divide-y">
-                      {recentActivity.map((activity, i) => (
-                        <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors">
-                          <div className={`flex size-8 items-center justify-center rounded-lg bg-muted ${activity.color}`}>
-                            <activity.icon className="size-4" />
+                    <div className="relative">
+                      {/* Timeline line */}
+                      <div className="absolute left-6 top-4 bottom-4 w-px bg-border" />
+                      <div className="divide-y">
+                        {recentActivity.map((activity, i) => (
+                          <div key={i} className="flex items-start gap-3 px-4 py-3 hover:bg-accent/50 transition-colors relative">
+                            {/* Timeline dot */}
+                            <div className="relative z-10 flex size-8 items-center justify-center rounded-full bg-background border-2 border-border mt-0.5 shrink-0">
+                              <div className={`size-2.5 rounded-full ${activity.color.replace('text-', 'bg-')}`} />
+                            </div>
+                            <div className="flex-1 min-w-0 pt-0.5">
+                              <div className="flex items-start gap-2">
+                                <activity.icon className={`size-4 ${activity.color} shrink-0 mt-0.5`} />
+                                <p className="text-sm text-foreground">{activity.text}</p>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Clock className="size-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">{activity.time}</span>
+                                <Badge variant="secondary" className="text-[10px] h-4 px-1.5 capitalize">{activity.type}</Badge>
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-sm text-foreground flex-1">{activity.text}</p>
-                          <span className="text-xs text-muted-foreground shrink-0">{activity.time}</span>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -688,6 +877,9 @@ export function DashboardView() {
           </>
         )}
       </main>
+
+      {/* Onboarding Modal */}
+      <OnboardingModal open={onboardingOpen} onOpenChange={setOnboardingOpen} />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>

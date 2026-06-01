@@ -13,6 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu'
 import {
   SidebarTrigger,
@@ -32,9 +34,16 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+const statusOptions = [
+  { value: 'online' as const, label: 'Online', emoji: '🟢', dotClass: 'bg-emerald-500' },
+  { value: 'away' as const, label: 'Away', emoji: '🟡', dotClass: 'bg-amber-500' },
+  { value: 'busy' as const, label: 'Busy', emoji: '🔴', dotClass: 'bg-red-500' },
+  { value: 'offline' as const, label: 'Offline', emoji: '⚫', dotClass: 'bg-gray-400' },
+]
+
 export function AppHeader() {
   const { currentWorkspaceId, currentSubView, toggleMembersPanel, membersPanelOpen, navigate, setCommandPaletteOpen, setProfileDialogOpen } = useUIStore()
-  const { user, logout } = useAuthStore()
+  const { user, logout, updateStatus } = useAuthStore()
   const { workspaces, currentWorkspace, switchWorkspace } = useWorkspaceStore()
   const { unreadCount } = useNotificationStore()
   const { openMobile, setOpenMobile } = useSidebar()
@@ -77,6 +86,8 @@ export function AppHeader() {
   }
 
   const isMac = typeof navigator !== 'undefined' && /Mac|iPhone/.test(navigator.userAgent)
+
+  const currentStatusOption = statusOptions.find((s) => s.value === user?.status) || statusOptions[0]
 
   return (
     <header className="flex h-14 items-center gap-2 border-b bg-background px-3 md:px-4">
@@ -201,16 +212,20 @@ export function AppHeader() {
         </Button>
       )}
 
-      {/* User menu */}
+      {/* User menu with status selector */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="size-9 p-0 rounded-full">
+          <Button variant="ghost" className="size-9 p-0 rounded-full relative">
             <Avatar className="size-8">
               <AvatarImage src={user?.photoURL || undefined} alt={user?.name || ''} />
               <AvatarFallback className={`${user?.avatar || 'bg-primary'} text-white text-xs`}>
                 {user ? getInitials(user.name) : '?'}
               </AvatarFallback>
             </Avatar>
+            {/* Status dot on avatar */}
+            <div className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background ${
+              currentStatusOption.dotClass
+            }`} />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
@@ -226,6 +241,29 @@ export function AppHeader() {
             <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
           <DropdownMenuSeparator />
+
+          {/* Status Selector */}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-xs text-muted-foreground px-2">Set Status</DropdownMenuLabel>
+            {statusOptions.map((option) => (
+              <DropdownMenuItem
+                key={option.value}
+                onClick={() => updateStatus(option.value)}
+                className={cn(
+                  'cursor-pointer',
+                  user?.status === option.value && 'bg-accent'
+                )}
+              >
+                <span className="mr-2 text-sm">{option.emoji}</span>
+                <span className="text-sm">{option.label}</span>
+                {user?.status === option.value && (
+                  <span className="ml-auto text-xs text-primary">✓</span>
+                )}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+
           <DropdownMenuItem
             onClick={() => setProfileDialogOpen(true)}
             className="cursor-pointer"

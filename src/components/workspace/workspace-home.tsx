@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useChannelStore } from '@/stores/channelStore'
 import { useDocumentStore } from '@/stores/documentStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
+import { Progress } from '@/components/ui/progress'
 import {
   Dialog,
   DialogContent,
@@ -39,6 +41,10 @@ import {
   BarChart3,
   TrendingUp,
   Zap,
+  Heart,
+  Target,
+  UserPlus,
+  Keyboard,
 } from 'lucide-react'
 
 const fadeUp = {
@@ -47,10 +53,10 @@ const fadeUp = {
 }
 
 const quickActions = [
-  { icon: MessageSquare, label: 'New Message', subView: 'channel' as const, gradient: 'from-emerald-500 to-emerald-600', iconBg: 'bg-white/20' },
-  { icon: FileText, label: 'New Document', subView: 'documents' as const, gradient: 'from-teal-500 to-teal-600', iconBg: 'bg-white/20' },
-  { icon: Table2, label: 'New Spreadsheet', subView: 'spreadsheets' as const, gradient: 'from-cyan-500 to-cyan-600', iconBg: 'bg-white/20' },
-  { icon: Presentation, label: 'New Presentation', subView: 'presentations' as const, gradient: 'from-amber-500 to-amber-600', iconBg: 'bg-white/20' },
+  { icon: Hash, label: 'Create Channel', subView: 'home' as const, gradient: 'from-emerald-500 to-emerald-600', iconBg: 'bg-white/20', action: 'create-channel' },
+  { icon: UserPlus, label: 'Add Member', subView: 'members' as const, gradient: 'from-teal-500 to-teal-600', iconBg: 'bg-white/20', action: 'add-member' },
+  { icon: FileText, label: 'New Document', subView: 'documents' as const, gradient: 'from-cyan-500 to-cyan-600', iconBg: 'bg-white/20', action: 'new-doc' },
+  { icon: ListTodo, label: 'New Task', subView: 'tasks' as const, gradient: 'from-amber-500 to-amber-600', iconBg: 'bg-white/20', action: 'new-task' },
 ]
 
 const gettingStartedItems = [
@@ -78,6 +84,7 @@ export function WorkspaceHome() {
   const { currentWorkspace, currentWorkspaceId, members, loadMembers } = useWorkspaceStore()
   const { channels, loadChannels, createChannel } = useChannelStore()
   const { documents, loadDocuments } = useDocumentStore()
+  const { tasks, loadTasks } = useTaskStore()
   const { navigate } = useUIStore()
   const { user } = useAuthStore()
 
@@ -90,8 +97,9 @@ export function WorkspaceHome() {
       loadChannels(currentWorkspaceId)
       loadMembers(currentWorkspaceId)
       loadDocuments(currentWorkspaceId)
+      loadTasks(currentWorkspaceId)
     }
-  }, [currentWorkspaceId, loadChannels, loadMembers, loadDocuments])
+  }, [currentWorkspaceId, loadChannels, loadMembers, loadDocuments, loadTasks])
 
   // Compute completed steps from data directly
   const completedSteps = useMemo(() => {
@@ -145,6 +153,31 @@ export function WorkspaceHome() {
     { icon: FileText, label: 'Documents', value: documents.length, color: 'text-primary bg-primary/10' },
   ], [members.length, channels.length, documents.length])
 
+  // Workspace Health Indicators
+  const healthIndicators = useMemo(() => {
+    const totalTasks = tasks.length
+    const completedTasks = tasks.filter(t => t.status === 'done').length
+    const inProgressTasks = tasks.filter(t => t.status === 'in_progress').length
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+    const activeRate = totalTasks > 0 ? Math.round((inProgressTasks / totalTasks) * 100) : 0
+
+    // Activity score based on: channels with messages, recent members, recent documents
+    const activityScore = Math.min(100, Math.round(
+      (channels.length * 10) +
+      (members.length * 8) +
+      (documents.length * 5) +
+      (completedTasks * 3)
+    ))
+
+    return {
+      completionRate,
+      activeRate,
+      activityScore,
+      totalTasks,
+      completedTasks,
+    }
+  }, [tasks, channels, members, documents])
+
   const handleCreateChannel = async () => {
     if (!currentWorkspaceId || !channelName.trim()) return
     const channel = await createChannel(currentWorkspaceId, {
@@ -163,13 +196,16 @@ export function WorkspaceHome() {
     }
   }
 
-  const handleQuickAction = (subView: string) => {
-    if (currentWorkspaceId) {
-      navigate('workspace', {
-        workspaceId: currentWorkspaceId,
-        subView: subView as typeof currentSubView,
-      })
+  const handleQuickAction = (action: string, subView: string) => {
+    if (!currentWorkspaceId) return
+    if (action === 'create-channel') {
+      setCreateChannelOpen(true)
+      return
     }
+    navigate('workspace', {
+      workspaceId: currentWorkspaceId,
+      subView: subView as typeof currentSubView,
+    })
   }
 
   const getInitials = (name: string) => {
@@ -226,30 +262,25 @@ export function WorkspaceHome() {
           </Card>
         </motion.div>
 
-        {/* Stats Summary Row */}
-        <motion.div variants={fadeUp} className="mb-8">
-          <div className="grid grid-cols-3 gap-3">
-            {workspaceStats.map((stat) => (
-              <Card key={stat.label} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className={`flex size-10 items-center justify-center rounded-xl ${stat.color}`}>
-                    <stat.icon className="size-5" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+        {/* Quick Actions Bar */}
+        <motion.div variants={fadeUp} className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Quick Actions
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary hover:text-primary h-7 text-xs"
+              onClick={() => {
+                const { setKeyboardShortcutsOpen } = useUIStore.getState()
+                setKeyboardShortcutsOpen(true)
+              }}
+            >
+              <Keyboard className="size-3.5 mr-1" />
+              Shortcuts
+            </Button>
           </div>
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div variants={fadeUp} className="mb-8">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            Quick Actions
-          </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {quickActions.map((action) => (
               <motion.div
@@ -259,7 +290,7 @@ export function WorkspaceHome() {
               >
                 <Card
                   className="cursor-pointer border-0 overflow-hidden hover:shadow-lg transition-shadow group"
-                  onClick={() => handleQuickAction(action.subView)}
+                  onClick={() => handleQuickAction(action.action, action.subView)}
                 >
                   <CardContent className={`p-4 flex flex-col items-center text-center gap-2.5 bg-gradient-to-br ${action.gradient} text-white`}>
                     <div className={`flex size-10 items-center justify-center rounded-xl ${action.iconBg} group-hover:scale-110 transition-transform`}>
@@ -270,6 +301,84 @@ export function WorkspaceHome() {
                 </Card>
               </motion.div>
             ))}
+          </div>
+        </motion.div>
+
+        {/* Workspace Health Indicators */}
+        <motion.div variants={fadeUp} className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Workspace Health
+            </h2>
+            <Activity className="size-4 text-muted-foreground" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Activity Score */}
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                      <Zap className="size-4" />
+                    </div>
+                    <span className="text-sm font-medium">Activity Score</span>
+                  </div>
+                  <Badge variant={healthIndicators.activityScore >= 70 ? 'default' : healthIndicators.activityScore >= 40 ? 'secondary' : 'outline'} className="text-xs">
+                    {healthIndicators.activityScore >= 70 ? 'Healthy' : healthIndicators.activityScore >= 40 ? 'Moderate' : 'Low'}
+                  </Badge>
+                </div>
+                <div className="flex items-end gap-2">
+                  <span className="text-2xl font-bold text-foreground">{healthIndicators.activityScore}</span>
+                  <span className="text-sm text-muted-foreground mb-0.5">/100</span>
+                </div>
+                <Progress value={healthIndicators.activityScore} className="mt-2 h-2" />
+              </CardContent>
+            </Card>
+
+            {/* Task Completion Rate */}
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
+                      <Target className="size-4" />
+                    </div>
+                    <span className="text-sm font-medium">Completion Rate</span>
+                  </div>
+                  <Badge variant={healthIndicators.completionRate >= 50 ? 'default' : 'outline'} className="text-xs">
+                    {healthIndicators.totalTasks} tasks
+                  </Badge>
+                </div>
+                <div className="flex items-end gap-2">
+                  <span className="text-2xl font-bold text-foreground">{healthIndicators.completionRate}%</span>
+                  <span className="text-sm text-muted-foreground mb-0.5">done</span>
+                </div>
+                <Progress value={healthIndicators.completionRate} className="mt-2 h-2" />
+              </CardContent>
+            </Card>
+
+            {/* Stats Summary */}
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <BarChart3 className="size-4" />
+                  </div>
+                  <span className="text-sm font-medium">Overview</span>
+                </div>
+                <div className="space-y-2">
+                  {workspaceStats.map((stat) => (
+                    <div key={stat.label} className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <stat.icon className="size-3.5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">{stat.label}</span>
+                      </div>
+                      <span className="text-sm font-semibold">{stat.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </motion.div>
 
@@ -337,7 +446,7 @@ export function WorkspaceHome() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleQuickAction('documents')}
+                    onClick={() => handleQuickAction('new-doc', 'documents')}
                   >
                     <Plus className="size-4 mr-1" />
                     Create Document
@@ -390,6 +499,15 @@ export function WorkspaceHome() {
             </h2>
             <Card>
               <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Heart className="size-4 text-primary" />
+                    <span className="text-sm font-medium">
+                      {completedSteps.size} of {gettingStartedItems.length} completed
+                    </span>
+                  </div>
+                  <Progress value={(completedSteps.size / gettingStartedItems.length) * 100} className="w-24 h-2" />
+                </div>
                 <div className="space-y-3">
                   {gettingStartedItems.map((item) => {
                     const isCompleted = completedSteps.has(item.id)
@@ -404,7 +522,7 @@ export function WorkspaceHome() {
                             if (item.id === 'create-channel') {
                               setCreateChannelOpen(true)
                             } else {
-                              handleQuickAction(item.subView)
+                              handleQuickAction(item.id, item.subView)
                             }
                           }
                         }}

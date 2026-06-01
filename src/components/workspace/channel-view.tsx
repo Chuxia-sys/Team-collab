@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Hash,
@@ -20,6 +20,9 @@ import {
   Star,
   MessageSquare,
   XCircle,
+  Search,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -115,20 +118,25 @@ function MessageReactions({ reactions, onReact }: { reactions: Record<string, st
   );
 }
 
-// Quick emoji react bar
-function QuickEmojiBar({ onReact }: { onReact: (emoji: string) => void }) {
+// Highlighted text component for search
+function HighlightedText({ text, highlight }: { text: string; highlight: string }) {
+  if (!highlight.trim()) return <>{text}</>;
+
+  const regex = new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+
   return (
-    <div className="flex items-center gap-0.5 rounded-full border bg-background shadow-sm p-1">
-      {QUICK_EMOJIS.map((emoji) => (
-        <button
-          key={emoji}
-          onClick={() => onReact(emoji)}
-          className="flex items-center justify-center size-7 rounded-full hover:bg-muted transition-colors text-sm"
-        >
-          {emoji}
-        </button>
-      ))}
-    </div>
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-primary/20 text-foreground rounded-sm px-0.5">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
   );
 }
 
@@ -156,8 +164,12 @@ export function ChannelView() {
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [bookmarkedMessages, setBookmarkedMessages] = useState<Set<string>>(new Set());
   const [messageReactions, setMessageReactions] = useState<Record<string, Record<string, string[]>>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Load channels if not loaded
   useEffect(() => {
@@ -193,6 +205,49 @@ export function ChannelView() {
       inputRef.current?.focus();
     }
   }, [replyingTo, editingMessage]);
+
+  // Search functionality
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase();
+    return messages
+      .filter((m) => !m.isDeleted && m.content.toLowerCase().includes(query))
+      .map((m) => m.id);
+  }, [messages, searchQuery]);
+
+  const totalSearchResults = searchResults.length;
+
+  // Navigate search results
+  const navigateSearch = useCallback((direction: 'up' | 'down') => {
+    if (searchResults.length === 0) return;
+    let newIndex: number;
+    if (direction === 'down') {
+      newIndex = (currentSearchIndex + 1) % searchResults.length;
+    } else {
+      newIndex = (currentSearchIndex - 1 + searchResults.length) % searchResults.length;
+    }
+    setCurrentSearchIndex(newIndex);
+
+    // Scroll to the message
+    const messageId = searchResults[newIndex];
+    const element = document.getElementById(`message-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [searchResults, currentSearchIndex]);
+
+  // Keyboard shortcut for search navigation
+  useEffect(() => {
+    if (!searchOpen || !searchQuery.trim()) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        navigateSearch(e.shiftKey ? 'up' : 'down');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [searchOpen, searchQuery, navigateSearch]);
 
   const handleSend = useCallback(async () => {
     if (!inputValue.trim() || !currentWorkspaceId || !currentChannelId) return;
@@ -335,6 +390,8 @@ export function ChannelView() {
   // Channel members for info panel
   const channelMembers = members.slice(0, 8);
 
+  // Filter messages by search
+  const isSearchActive = searchQuery.trim().length > 0;
 
   if (!currentChannel) {
     return (
@@ -363,6 +420,30 @@ export function ChannelView() {
             )}
           </div>
           <div className="flex items-center gap-1">
+            {/* Search Toggle */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={searchOpen ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setSearchOpen(!searchOpen);
+                      if (!searchOpen) {
+                        setTimeout(() => searchInputRef.current?.focus(), 100);
+                      } else {
+                        setSearchQuery('');
+                        setCurrentSearchIndex(0);
+                      }
+                    }}
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Search Messages</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -400,6 +481,72 @@ export function ChannelView() {
             </TooltipProvider>
           </div>
         </div>
+
+        {/* Search Bar */}
+        <AnimatePresence>
+          {searchOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="border-b shrink-0 overflow-hidden"
+            >
+              <div className="flex items-center gap-2 px-4 py-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentSearchIndex(0);
+                    }}
+                    placeholder="Search messages in #${currentChannel.name}..."
+                    className="pl-9 h-8 text-sm"
+                  />
+                </div>
+                {isSearchActive && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {totalSearchResults > 0
+                        ? `${currentSearchIndex + 1} of ${totalSearchResults}`
+                        : 'No results'}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7"
+                      onClick={() => navigateSearch('up')}
+                      disabled={totalSearchResults === 0}
+                    >
+                      <ChevronUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7"
+                      onClick={() => navigateSearch('down')}
+                      disabled={totalSearchResults === 0}
+                    >
+                      <ChevronDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setCurrentSearchIndex(0);
+                      }}
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Pinned Messages Banner */}
         <AnimatePresence>
@@ -440,6 +587,8 @@ export function ChannelView() {
                 const grouped = isGrouped(index);
                 const isBookmarked = bookmarkedMessages.has(message.id);
                 const reactions = messageReactions[message.id] || {};
+                const isSearchMatch = isSearchActive && searchResults.includes(message.id);
+                const isCurrentSearchMatch = isSearchActive && searchResults[currentSearchIndex] === message.id;
 
                 return (
                   <React.Fragment key={message.id}>
@@ -447,6 +596,7 @@ export function ChannelView() {
                       <DateSeparator date={message.createdAt} />
                     )}
                     <motion.div
+                      id={`message-${message.id}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.15 }}
@@ -455,7 +605,9 @@ export function ChannelView() {
                         isHovered && 'bg-muted/50',
                         message.isDeleted && 'opacity-50',
                         grouped && 'pl-14',
-                        message.parentId && 'bg-primary/[0.03] border-l-2 border-primary/20 ml-10'
+                        message.parentId && 'bg-primary/[0.03] border-l-2 border-primary/20 ml-10',
+                        isCurrentSearchMatch && 'bg-primary/10 ring-2 ring-primary/30',
+                        isSearchMatch && !isCurrentSearchMatch && 'bg-primary/5',
                       )}
                       onMouseEnter={() => setHoveredMessageId(message.id)}
                       onMouseLeave={() => setHoveredMessageId(null)}
@@ -517,7 +669,11 @@ export function ChannelView() {
                               // Subtle background for own messages
                               isOwn && !grouped && 'bg-primary/[0.04] -mx-1 px-2 py-1 rounded-lg'
                             )}>
-                              {message.content}
+                              {isSearchActive ? (
+                                <HighlightedText text={message.content} highlight={searchQuery} />
+                              ) : (
+                                message.content
+                              )}
                             </div>
                           )}
 

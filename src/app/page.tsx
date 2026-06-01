@@ -10,6 +10,7 @@ import { DashboardView } from '@/components/views/dashboard-view'
 import { WorkspaceView } from '@/components/views/workspace-view'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { ProfileDialog } from '@/components/layout/profile-dialog'
+import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog'
 
 export default function Home() {
   const { initialized, user } = useAuthStore()
@@ -70,6 +71,7 @@ export default function Home() {
         open={profileDialogOpen}
         onOpenChange={setProfileDialogOpen}
       />
+      <KeyboardShortcutsDialog />
     </>
   )
 }

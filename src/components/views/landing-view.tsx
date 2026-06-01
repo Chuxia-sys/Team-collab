@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { useEffect, useState, useRef } from 'react'
+import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import { useUIStore } from '@/stores/uiStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   MessageSquare,
   FileText,
@@ -20,6 +22,15 @@ import {
   Heart,
   Building2,
   Rocket,
+  Star,
+  Quote,
+  Mail,
+  Github,
+  Twitter,
+  Linkedin,
+  ChevronRight,
+  TrendingUp,
+  Award,
 } from 'lucide-react'
 
 const features = [
@@ -77,6 +88,63 @@ const trustedCompanies = [
   'Acme Corp', 'Globex', 'Initech', 'Umbrella', 'Stark Industries', 'Wayne Enterprises',
 ]
 
+const testimonials = [
+  {
+    name: 'Sarah Chen',
+    role: 'Engineering Lead',
+    company: 'Acme Corp',
+    avatar: 'SC',
+    avatarColor: 'bg-emerald-500',
+    quote: 'TeamCollab transformed how our distributed team communicates. We went from 5 different tools to just one.',
+    rating: 5,
+  },
+  {
+    name: 'Marcus Johnson',
+    role: 'Product Manager',
+    company: 'Globex',
+    avatar: 'MJ',
+    avatarColor: 'bg-teal-500',
+    quote: 'The task management and document collaboration features are incredible. Our sprint velocity increased by 40%.',
+    rating: 5,
+  },
+  {
+    name: 'Elena Rodriguez',
+    role: 'Design Director',
+    company: 'Initech',
+    avatar: 'ER',
+    avatarColor: 'bg-amber-500',
+    quote: 'Finally, a tool that designers and developers both love. The presentation mode is a game-changer for design reviews.',
+    rating: 5,
+  },
+  {
+    name: 'David Kim',
+    role: 'CTO',
+    company: 'Umbrella',
+    avatar: 'DK',
+    avatarColor: 'bg-rose-500',
+    quote: 'Security was our top concern. TeamCollab\'s workspace isolation and role-based access gave us confidence.',
+    rating: 5,
+  },
+  {
+    name: 'Lisa Wang',
+    role: 'Team Lead',
+    company: 'Stark Industries',
+    avatar: 'LW',
+    avatarColor: 'bg-violet-500',
+    quote: 'We onboarded 50 team members in a day. The invite system and workspace structure made it effortless.',
+    rating: 5,
+  },
+  {
+    name: 'James Mitchell',
+    role: 'Founder',
+    company: 'Wayne Enterprises',
+    avatar: 'JM',
+    avatarColor: 'bg-cyan-500',
+    quote: 'The best team collaboration tool we\'ve used. It just works, and the real-time features are rock solid.',
+    rating: 5,
+  },
+]
+
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -88,6 +156,37 @@ const stagger = {
       staggerChildren: 0.1,
     },
   },
+}
+
+// Animated counter component
+function AnimatedCounter({ target, suffix = '', prefix = '' }: { target: number; suffix?: string; prefix?: string }) {
+  const [count, setCount] = useState(0)
+  const ref = useRef<HTMLDivElement>(null)
+  const isInView = useInView(ref, { once: true, margin: '-100px' })
+
+  useEffect(() => {
+    if (!isInView) return
+    const duration = 2000
+    const steps = 60
+    const increment = target / steps
+    let current = 0
+    const interval = setInterval(() => {
+      current += increment
+      if (current >= target) {
+        setCount(target)
+        clearInterval(interval)
+      } else {
+        setCount(Math.floor(current))
+      }
+    }, duration / steps)
+    return () => clearInterval(interval)
+  }, [isInView, target])
+
+  return (
+    <div ref={ref} className="text-3xl sm:text-4xl font-bold text-primary mb-1">
+      {prefix}{count.toLocaleString()}{suffix}
+    </div>
+  )
 }
 
 // Floating shape component for hero background
@@ -150,12 +249,22 @@ export function LandingView() {
   const { scrollY } = useScroll()
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0])
   const [scrolled, setScrolled] = useState(false)
+  const [email, setEmail] = useState('')
+  const [subscribed, setSubscribed] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  const handleNewsletterSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (email.trim()) {
+      setSubscribed(true)
+      setEmail('')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -171,6 +280,7 @@ export function LandingView() {
             </div>
             <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
               <a href="#features" className="hover:text-foreground transition-colors">Features</a>
+              <a href="#testimonials" className="hover:text-foreground transition-colors">Testimonials</a>
               <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
               <a href="#about" className="hover:text-foreground transition-colors">About</a>
               <a href="#contact" className="hover:text-foreground transition-colors">Contact</a>
@@ -254,7 +364,7 @@ export function LandingView() {
         </motion.div>
       </motion.section>
 
-      {/* Trusted by Section */}
+      {/* Trusted by Section - With Animated Counter */}
       <section className="py-12 bg-muted/30 border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -264,14 +374,26 @@ export function LandingView() {
             viewport={{ once: true }}
           >
             <p className="text-sm font-medium text-muted-foreground mb-6 uppercase tracking-wider">
-              Trusted by 2,500+ teams worldwide
+              Trusted by teams worldwide
             </p>
+            {/* Animated counter */}
+            <div className="mb-8">
+              <AnimatedCounter target={2500} suffix="+" />
+              <p className="text-sm text-muted-foreground">teams already collaborating</p>
+            </div>
             <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
-              {trustedCompanies.map((company) => (
-                <div key={company} className="flex items-center gap-2 text-muted-foreground/60 hover:text-muted-foreground transition-colors">
+              {trustedCompanies.map((company, i) => (
+                <motion.div
+                  key={company}
+                  className="flex items-center gap-2 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                >
                   <Building2 className="size-5" />
                   <span className="text-sm font-semibold tracking-wide">{company}</span>
-                </div>
+                </motion.div>
               ))}
             </div>
           </motion.div>
@@ -328,15 +450,15 @@ export function LandingView() {
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* Stats Section with Animated Counters */}
       <section className="py-16 bg-gradient-to-r from-primary/5 via-accent to-primary/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { value: '2,500+', label: 'Active Teams' },
-              { value: '50K+', label: 'Messages Daily' },
-              { value: '99.9%', label: 'Uptime' },
-              { value: '4.9/5', label: 'User Rating' },
+              { target: 2500, suffix: '+', label: 'Active Teams', icon: Users },
+              { target: 50000, suffix: '+', label: 'Messages Daily', icon: MessageSquare },
+              { target: 99, suffix: '.9%', label: 'Uptime', icon: TrendingUp },
+              { target: 49, suffix: '/5', label: 'User Rating', icon: Award },
             ].map((stat, i) => (
               <motion.div
                 key={stat.label}
@@ -346,8 +468,73 @@ export function LandingView() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
               >
-                <div className="text-3xl sm:text-4xl font-bold text-primary mb-1">{stat.value}</div>
+                <div className="flex justify-center mb-2">
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <stat.icon className="size-5" />
+                  </div>
+                </div>
+                <AnimatedCounter target={stat.target} suffix={stat.suffix} />
                 <div className="text-sm text-muted-foreground">{stat.label}</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section id="testimonials" className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary mb-4">
+              <Star className="size-4" />
+              Loved by Teams
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              What our users say
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Don&apos;t just take our word for it — hear from some of the teams already using TeamCollab.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {testimonials.map((testimonial, i) => (
+              <motion.div
+                key={testimonial.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <Card className="h-full hover:shadow-lg transition-all duration-300 hover:border-primary/20 group">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-1 mb-4">
+                      {[...Array(testimonial.rating)].map((_, j) => (
+                        <Star key={j} className="size-4 fill-amber-400 text-amber-400" />
+                      ))}
+                    </div>
+                    <Quote className="size-8 text-primary/20 mb-3" />
+                    <p className="text-sm text-foreground leading-relaxed mb-6">
+                      &ldquo;{testimonial.quote}&rdquo;
+                    </p>
+                    <div className="flex items-center gap-3 pt-4 border-t">
+                      <Avatar className="size-10">
+                        <AvatarFallback className={`${testimonial.avatarColor} text-white text-xs font-semibold`}>
+                          {testimonial.avatar}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{testimonial.name}</p>
+                        <p className="text-xs text-muted-foreground">{testimonial.role} at {testimonial.company}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </motion.div>
             ))}
           </div>
@@ -403,30 +590,57 @@ export function LandingView() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Enhanced Footer */}
       <footer id="about" className="border-t bg-muted/30 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-            {/* Brand */}
-            <div className="col-span-2 md:col-span-1">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
+            {/* Brand + Newsletter */}
+            <div className="col-span-2 md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
                 <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   <MessageSquare className="size-5" />
                 </div>
                 <span className="text-lg font-bold text-foreground">TeamCollab</span>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                The all-in-one collaboration platform for modern teams.
+              <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                The all-in-one collaboration platform for modern teams. Work smarter, not harder.
               </p>
+              {/* Newsletter Signup */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-foreground">Stay updated</h4>
+                {subscribed ? (
+                  <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg px-3 py-2">
+                    <CheckCircle2 className="size-4" />
+                    You&apos;re subscribed!
+                  </div>
+                ) : (
+                  <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="flex-1 text-sm h-9"
+                      required
+                    />
+                    <Button type="submit" size="sm" className="bg-primary hover:bg-primary/90 shrink-0">
+                      <Mail className="size-4 mr-1" />
+                      Subscribe
+                    </Button>
+                  </form>
+                )}
+                <p className="text-xs text-muted-foreground">No spam. Unsubscribe anytime.</p>
+              </div>
             </div>
             {/* Product */}
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-3">Product</h4>
-              <ul className="space-y-2">
-                {['Features', 'Pricing', 'Integrations', 'Changelog'].map((item) => (
+              <ul className="space-y-2.5">
+                {['Features', 'Pricing', 'Integrations', 'Changelog', 'Roadmap'].map((item) => (
                   <li key={item}>
-                    <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                    <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors flex items-center gap-1 group">
                       {item}
+                      <ChevronRight className="size-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                     </span>
                   </li>
                 ))}
@@ -435,11 +649,12 @@ export function LandingView() {
             {/* Company */}
             <div id="contact">
               <h4 className="text-sm font-semibold text-foreground mb-3">Company</h4>
-              <ul className="space-y-2">
-                {['About', 'Blog', 'Careers', 'Contact'].map((item) => (
+              <ul className="space-y-2.5">
+                {['About', 'Blog', 'Careers', 'Contact', 'Press Kit'].map((item) => (
                   <li key={item}>
-                    <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                    <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors flex items-center gap-1 group">
                       {item}
+                      <ChevronRight className="size-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                     </span>
                   </li>
                 ))}
@@ -448,23 +663,39 @@ export function LandingView() {
             {/* Legal */}
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-3">Legal</h4>
-              <ul className="space-y-2">
-                {['Privacy', 'Terms', 'Security', 'GDPR'].map((item) => (
+              <ul className="space-y-2.5">
+                {['Privacy', 'Terms', 'Security', 'GDPR', 'Cookies'].map((item) => (
                   <li key={item}>
-                    <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                    <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors flex items-center gap-1 group">
                       {item}
+                      <ChevronRight className="size-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                     </span>
                   </li>
                 ))}
               </ul>
             </div>
           </div>
+
+          {/* Social links & copyright */}
           <div className="border-t pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
               &copy; 2026 TeamCollab. All rights reserved.
             </p>
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              Made with <Heart className="size-3.5 text-red-500 mx-0.5" /> for teams everywhere
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <a href="#" className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                  <Twitter className="size-4" />
+                </a>
+                <a href="#" className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                  <Github className="size-4" />
+                </a>
+                <a href="#" className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                  <Linkedin className="size-4" />
+                </a>
+              </div>
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                Made with <Heart className="size-3.5 text-red-500 mx-0.5" /> for teams everywhere
+              </div>
             </div>
           </div>
         </div>

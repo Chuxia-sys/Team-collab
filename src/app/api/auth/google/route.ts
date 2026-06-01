@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { createSessionCookie } from '@/lib/auth';
+import { setSessionCookie } from '@/lib/auth';
 
 // Google token verification endpoint
 const GOOGLE_TOKEN_INFO_URL = 'https://oauth2.googleapis.com/tokeninfo?id_token=';
@@ -130,12 +130,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create session cookie
-    const cookie = createSessionCookie(user.id);
+    // Set session cookie using Next.js cookies API
+    await setSessionCookie(user.id);
 
     return NextResponse.json(
       { user, message: 'Google sign-in successful' },
-      { status: 200, headers: { 'Set-Cookie': cookie } }
+      { status: 200 }
     );
   } catch (error) {
     console.error('Google auth error:', error);

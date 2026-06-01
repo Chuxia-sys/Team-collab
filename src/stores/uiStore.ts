@@ -15,6 +15,8 @@ interface UIState {
   currentSubView: WorkspaceSubView;
   commandPaletteOpen: boolean;
   profileDialogOpen: boolean;
+  keyboardShortcutsOpen: boolean;
+  onboardingSeen: boolean;
 }
 
 interface UIActions {
@@ -25,6 +27,8 @@ interface UIActions {
   setMembersPanelOpen: (open: boolean) => void;
   setCommandPaletteOpen: (open: boolean) => void;
   setProfileDialogOpen: (open: boolean) => void;
+  setKeyboardShortcutsOpen: (open: boolean) => void;
+  setOnboardingSeen: (seen: boolean) => void;
 }
 
 export const useUIStore = create<UIState & UIActions>()(
@@ -42,6 +46,8 @@ export const useUIStore = create<UIState & UIActions>()(
       currentSubView: 'home',
       commandPaletteOpen: false,
       profileDialogOpen: false,
+      keyboardShortcutsOpen: false,
+      onboardingSeen: false,
 
       navigate: (view: AppView, params?: NavigateParams) => {
         const updates: Partial<UIState> = { currentView: view };
@@ -117,6 +123,14 @@ export const useUIStore = create<UIState & UIActions>()(
       setProfileDialogOpen: (open: boolean) => {
         set({ profileDialogOpen: open });
       },
+
+      setKeyboardShortcutsOpen: (open: boolean) => {
+        set({ keyboardShortcutsOpen: open });
+      },
+
+      setOnboardingSeen: (seen: boolean) => {
+        set({ onboardingSeen: seen });
+      },
     }),
     {
       name: 'team-collab-ui',
@@ -131,6 +145,7 @@ export const useUIStore = create<UIState & UIActions>()(
         currentTaskId: state.currentTaskId,
         currentSubView: state.currentSubView,
         sidebarOpen: state.sidebarOpen,
+        onboardingSeen: state.onboardingSeen,
       }),
     }
   )

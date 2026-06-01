@@ -16,6 +16,7 @@ interface AuthActions {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: { name?: string; avatar?: string | null }) => Promise<void>;
+  updateStatus: (status: 'online' | 'away' | 'busy' | 'offline') => Promise<void>;
   clearError: () => void;
 }
 
@@ -211,6 +212,29 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
         set({ error: 'Network error. Please try again.', isLoading: false });
       }
       throw err;
+    }
+  },
+
+  updateStatus: async (status: 'online' | 'away' | 'busy' | 'offline') => {
+    try {
+      const res = await fetch('/api/auth/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error('Failed to update status:', data.error);
+        return;
+      }
+
+      set((state) => ({
+        user: state.user ? { ...state.user, status } : null,
+      }));
+    } catch (err) {
+      console.error('Failed to update status:', err);
     }
   },
 

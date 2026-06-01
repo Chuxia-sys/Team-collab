@@ -45,13 +45,25 @@ export async function getAuthUser() {
   }
 }
 
-export function createSessionCookie(userId: string) {
+export async function setSessionCookie(userId: string) {
+  const cookieStore = await cookies();
   const encoded = Buffer.from(userId).toString('base64');
-  return `tc-session=${encoded}; HttpOnly; Path=/; Max-Age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+  cookieStore.set('tc-session', encoded, {
+    httpOnly: true,
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    sameSite: 'lax',
+  });
 }
 
-export function clearSessionCookie() {
-  return 'tc-session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax';
+export async function clearSessionCookie() {
+  const cookieStore = await cookies();
+  cookieStore.set('tc-session', '', {
+    httpOnly: true,
+    path: '/',
+    maxAge: 0,
+    sameSite: 'lax',
+  });
 }
 
 export async function requireAuth() {

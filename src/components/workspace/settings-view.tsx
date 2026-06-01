@@ -26,6 +26,8 @@ import {
   Moon,
   Sun,
   Monitor,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +62,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/hooks/use-toast';
+import { useNotificationSound } from '@/hooks/use-notification-sound';
 
 const ROLE_CONFIG: Record<string, { label: string; color: string }> = {
   owner: { label: 'Owner', color: 'bg-amber-100 text-amber-800 border-amber-300' },
@@ -91,6 +94,7 @@ export function SettingsView() {
     removeMember,
   } = useWorkspaceStore();
   const { user } = useAuthStore();
+  const { notificationSoundEnabled, toggleNotificationSound, playNotificationSound } = useNotificationSound();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -407,6 +411,35 @@ export function SettingsView() {
                     checked={notifications.email}
                     onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, email: checked }))}
                   />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between py-2">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium">Notification Sounds</Label>
+                      {notificationSoundEnabled ? (
+                        <Volume2 className="size-3.5 text-primary" />
+                      ) : (
+                        <VolumeX className="size-3.5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Play a sound when you receive new messages</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={playNotificationSound}
+                      disabled={!notificationSoundEnabled}
+                    >
+                      Test
+                    </Button>
+                    <Switch
+                      checked={notificationSoundEnabled}
+                      onCheckedChange={(checked) => toggleNotificationSound(checked)}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
