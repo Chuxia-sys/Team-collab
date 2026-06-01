@@ -32,6 +32,8 @@ export async function getAuthUser() {
         email: true,
         name: true,
         avatar: true,
+        photoURL: true,
+        authProvider: true,
         status: true,
         createdAt: true,
         updatedAt: true,

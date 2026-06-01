@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Dialog,
   DialogContent,
@@ -275,11 +275,17 @@ export function DashboardView() {
             <div className="flex items-center gap-3">
               <div className="hidden sm:flex items-center gap-2">
                 <Avatar className="size-8">
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                  <AvatarImage src={user?.photoURL || undefined} alt={user?.name || ''} />
+                  <AvatarFallback className={`${user?.avatar || 'bg-primary/10'} ${user?.avatar ? 'text-white' : 'text-primary'} text-xs`}>
                     {user?.name ? getInitials(user.name) : 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-sm font-medium text-foreground">{user?.name}</span>
+                {user?.authProvider === 'google' && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                    Google
+                  </Badge>
+                )}
               </div>
               <Button
                 variant="ghost"

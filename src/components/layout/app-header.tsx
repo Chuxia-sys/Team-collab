@@ -206,8 +206,8 @@ export function AppHeader() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="size-9 p-0 rounded-full">
             <Avatar className="size-8">
-              <AvatarImage src={user?.avatar || undefined} alt={user?.name || ''} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+              <AvatarImage src={user?.photoURL || undefined} alt={user?.name || ''} />
+              <AvatarFallback className={`${user?.avatar || 'bg-primary'} text-white text-xs`}>
                 {user ? getInitials(user.name) : '?'}
               </AvatarFallback>
             </Avatar>
@@ -215,7 +215,14 @@ export function AppHeader() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <div className="px-2 py-1.5">
-            <p className="text-sm font-medium">{user?.name}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">{user?.name}</p>
+              {user?.authProvider === 'google' && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                  Google
+                </Badge>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
           <DropdownMenuSeparator />

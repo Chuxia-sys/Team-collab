@@ -10,12 +10,36 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { MessageSquare, Eye, EyeOff, AlertCircle, Zap, Shield, Users, ArrowRight, Check } from 'lucide-react'
+import { isFirebaseConfigured } from '@/lib/firebase'
 
 const leftPanelFeatures = [
   { icon: Zap, text: 'Real-time collaboration across all tools' },
   { icon: Shield, text: 'Enterprise-grade security & privacy' },
   { icon: Users, text: 'Built for teams of any size' },
 ]
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24">
+      <path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+        fill="#EA4335"
+      />
+    </svg>
+  )
+}
 
 function getPasswordStrength(password: string): { level: number; label: string; color: string } {
   if (!password) return { level: 0, label: '', color: '' }
@@ -32,7 +56,7 @@ function getPasswordStrength(password: string): { level: number; label: string; 
 }
 
 export function RegisterView() {
-  const { register, isLoading, error, clearError } = useAuthStore()
+  const { register, loginWithGoogle, isLoading, isGoogleLoading, error, clearError } = useAuthStore()
   const { navigate } = useUIStore()
 
   const [name, setName] = useState('')
@@ -71,7 +95,12 @@ export function RegisterView() {
     await register(email, password, name)
   }
 
+  const handleGoogleSignIn = async () => {
+    await loginWithGoogle()
+  }
+
   const displayError = localError || error
+  const isAuthLoading = isLoading || isGoogleLoading
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -193,6 +222,42 @@ export function RegisterView() {
               <CardDescription>Get started with TeamCollab for free</CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Google Sign-In Button - only show if Firebase is configured */}
+              {isFirebaseConfigured && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-11 font-medium relative"
+                    onClick={handleGoogleSignIn}
+                    disabled={isAuthLoading}
+                  >
+                    {isGoogleLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        <span>Signing in with Google...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5">
+                        <GoogleIcon className="size-5 shrink-0" />
+                        <span>Continue with Google</span>
+                      </div>
+                    )}
+                  </Button>
+
+                  {/* Divider */}
+                  <div className="relative my-5">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">or register with email</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Email/Password Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 {displayError && (
                   <motion.div
@@ -214,7 +279,7 @@ export function RegisterView() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    disabled={isLoading}
+                    disabled={isAuthLoading}
                     className="h-11"
                   />
                 </div>
@@ -228,7 +293,7 @@ export function RegisterView() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    disabled={isLoading}
+                    disabled={isAuthLoading}
                     className="h-11"
                   />
                 </div>
@@ -243,7 +308,7 @@ export function RegisterView() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      disabled={isLoading}
+                      disabled={isAuthLoading}
                       className="h-11 pr-10"
                       minLength={6}
                     />
@@ -301,7 +366,7 @@ export function RegisterView() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
-                      disabled={isLoading}
+                      disabled={isAuthLoading}
                       className="h-11 pr-10"
                       minLength={6}
                     />
@@ -331,7 +396,7 @@ export function RegisterView() {
                 <Button
                   type="submit"
                   className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
-                  disabled={isLoading || !name || !email || !password || !confirmPassword || !agreedToTerms}
+                  disabled={isAuthLoading || !name || !email || !password || !confirmPassword || !agreedToTerms}
                 >
                   {isLoading ? (
                     <div className="flex items-center gap-2">

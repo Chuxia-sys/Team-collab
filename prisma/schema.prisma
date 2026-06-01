@@ -11,8 +11,10 @@ model User {
   id            String   @id @default(cuid())
   email         String   @unique
   name          String
-  passwordHash  String
+  passwordHash  String?  // Optional for Google Auth users
   avatar        String?
+  photoURL      String?  // Google profile photo URL
+  authProvider  String   @default("email") // email, google
   status        String   @default("online") // online, offline, away, busy
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

@@ -9,6 +9,8 @@ export interface User {
   name: string;
   passwordHash?: string;
   avatar: string | null;
+  photoURL: string | null;
+  authProvider: 'email' | 'google';
   status: 'online' | 'offline' | 'away' | 'busy';
   createdAt: string;
   updatedAt: string;

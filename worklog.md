@@ -309,3 +309,116 @@ Stage Summary:
 3. Add drag-and-drop file upload for documents
 4. Add notification sound preferences
 5. Add keyboard shortcuts help panel
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Add Google Sign-In Authentication using Firebase
+
+Work Log:
+- Installed Firebase SDK (firebase@12.14.0)
+- Updated Prisma schema: made `passwordHash` optional, added `authProvider` (email/google) and `photoURL` fields to User model
+- Ran `bun run db:push` to sync schema changes
+- Created Firebase client configuration at `src/lib/firebase.ts`:
+  - Lazy initialization with environment variables
+  - GoogleAuthProvider with profile + email scopes
+  - `isFirebaseConfigured` flag for graceful degradation when Firebase credentials are missing
+- Created `/api/auth/google` API route:
+  - Verifies Google ID token server-side using Google's tokeninfo endpoint
+  - Creates new user in DB if first-time Google sign-in (no password needed)
+  - Finds existing user by email if already registered
+  - Links accounts: if email-auth user signs in with Google, updates authProvider to 'google'
+  - Updates photoURL and name from Google profile for Google-auth users
+  - Sets session cookie for authenticated session
+- Updated TypeScript types: Added `photoURL: string | null` and `authProvider: 'email' | 'google'` to User interface
+- Updated authStore with `loginWithGoogle` method:
+  - Dynamically imports Firebase (SSR-safe)
+  - Checks `isFirebaseConfigured` before attempting Google Sign-In
+  - Handles Firebase Auth popup for Google Sign-In
+  - Gets ID token from Firebase credential for server verification
+  - Sends to `/api/auth/google` for backend processing
+  - Graceful error handling for: popup-closed-by-user, popup-blocked, network errors
+  - Also added `isGoogleLoading` state for Google-specific loading
+  - Updated `logout` to also sign out from Firebase Auth
+- Updated Login view with Google Sign-In:
+  - "Continue with Google" button with official Google G logo (multi-color SVG)
+  - Divider "or continue with email" between Google and email/password forms
+  - Only shows Google button when Firebase is configured
+  - Loading state shows "Signing in with Google..." spinner
+- Updated Register view with Google Sign-In:
+  - Same "Continue with Google" button with divider
+  - Only shows when Firebase is configured
+  - "or register with email" divider text
+- Updated login API route to handle Google-auth users:
+  - Returns specific error message if Google-auth user tries password login: "This account uses Google Sign-In. Please sign in with Google instead."
+  - Updated select fields to include photoURL and authProvider
+- Updated all auth API routes to include photoURL and authProvider in responses:
+  - /api/auth/login, /api/auth/register, /api/auth/me, /api/auth/profile
+- Updated app-header to display Google photo URL:
+  - Avatar uses `photoURL` as image source (falls back to color avatar)
+  - Shows "Google" badge next to user name for Google-auth users
+- Updated dashboard-view to display Google photo URL:
+  - Avatar uses `photoURL` with fallback to color-based initials
+  - Shows "Google" badge for Google-auth users
+- Updated profile-dialog:
+  - Shows Google profile photo if available
+  - Hides avatar color picker for Google users with photo
+  - Shows "Google" badge and "Signed in with Google" info card
+  - Google logo in the info card
+- Created `.env` with Firebase configuration placeholders and instructions
+- All changes pass lint with zero errors
+
+Stage Summary:
+- Complete Google Sign-In authentication implemented using Firebase Authentication
+- Flow: Firebase Auth popup → ID token → Server verification → User creation/login → Session cookie
+- Auto-creates user profile for first-time Google sign-in with: UID, Display Name, Email, Profile Photo URL, Account Creation Date
+- No duplicate records: matches users by email
+- Links existing email-auth accounts to Google when user signs in with Google
+- Auth state persists across page refreshes (existing session cookie mechanism)
+- Loading states during authentication (isGoogleLoading spinner)
+- Graceful error handling with user-friendly notifications
+- Sign Out clears both Firebase Auth session and our session cookie
+- Route protection: existing mechanism redirects unauthenticated users to Login
+- Google photo URLs displayed in: app-header avatar, dashboard avatar, profile dialog
+- Firebase graceful degradation: Google Sign-In button hidden when Firebase not configured
+- Responsive design works on desktop, tablet, and mobile
+
+### New Files:
+- `src/lib/firebase.ts` - Firebase client configuration
+- `src/app/api/auth/google/route.ts` - Google Sign-In API route
+
+### Modified Files:
+- `prisma/schema.prisma` - Added photoURL, authProvider fields; made passwordHash optional
+- `src/types/index.ts` - Added photoURL and authProvider to User interface
+- `src/stores/authStore.ts` - Added loginWithGoogle, isGoogleLoading, Firebase sign-out on logout
+- `src/components/views/login-view.tsx` - Added "Continue with Google" button with divider
+- `src/components/views/register-view.tsx` - Added "Continue with Google" button with divider
+- `src/components/layout/app-header.tsx` - Display Google photo URL and auth provider badge
+- `src/components/views/dashboard-view.tsx` - Display Google photo URL and auth provider badge
+- `src/components/layout/profile-dialog.tsx` - Show Google photo, auth provider info, hide color picker for Google users
+- `src/app/api/auth/login/route.ts` - Handle Google-auth users trying password login, include new fields
+- `src/app/api/auth/register/route.ts` - Include new fields in response
+- `src/app/api/auth/profile/route.ts` - Include new fields in response
+- `src/lib/auth.ts` - Include new fields in getAuthUser select
+- `.env` - Added Firebase configuration placeholders
+
+### Setup Required:
+To enable Google Sign-In, users need to:
+1. Create a Firebase project at https://console.firebase.google.com/
+2. Enable Google as a sign-in provider in Firebase Authentication
+3. Add a Web app to get configuration values
+4. Fill in the NEXT_PUBLIC_FIREBASE_* environment variables in .env
+5. Restart the development server
+
+### Unresolved Issues / Risks:
+- Google Sign-In requires Firebase credentials to be configured in .env
+- Firebase Auth popup may be blocked by some browsers (handled with error message)
+- No Firebase Admin SDK for server-side token verification (using Google's tokeninfo endpoint instead)
+- Existing email-auth users who sign in with Google get their account linked automatically
+
+### Priority Recommendations for Next Phase:
+1. Add file upload/attachment support for messages
+2. Add message threading (expand reply threads into full conversation view)
+3. Add password reset functionality with actual email sending
+4. Add two-factor authentication (2FA) option
+5. Add account settings page (change email, link/unlink Google account, delete account)

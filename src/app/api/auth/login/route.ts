@@ -22,6 +22,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if this is a Google-auth user trying to use password login
+    if (!user.passwordHash) {
+      return NextResponse.json(
+        { error: 'This account uses Google Sign-In. Please sign in with Google instead.' },
+        { status: 401 }
+      );
+    }
+
     const validPassword = await verifyPassword(password, user.passwordHash);
     if (!validPassword) {
       return NextResponse.json(
@@ -36,11 +44,25 @@ export async function POST(request: NextRequest) {
       data: { status: 'online' },
     });
 
-    const cookie = createSessionCookie(user.id);
+    // Get user with all needed fields (excluding password)
+    const userResponse = await db.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatar: true,
+        photoURL: true,
+        authProvider: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
-    const { passwordHash: _, ...userWithoutPassword } = user;
+    const cookie = createSessionCookie(user.id);
     return NextResponse.json(
-      { user: userWithoutPassword, message: 'Login successful' },
+      { user: userResponse, message: 'Login successful' },
       { status: 200, headers: { 'Set-Cookie': cookie } }
     );
   } catch (error) {

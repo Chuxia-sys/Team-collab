@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     const user = await db.user.create({
       data: { email, name, passwordHash },
-      select: { id: true, email: true, name: true, avatar: true, status: true, createdAt: true, updatedAt: true },
+      select: { id: true, email: true, name: true, avatar: true, photoURL: true, authProvider: true, status: true, createdAt: true, updatedAt: true },
     });
 
     const cookie = createSessionCookie(user.id);

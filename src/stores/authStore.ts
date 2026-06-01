@@ -4,6 +4,7 @@ import type { User, AuthResponse, LoginCredentials, RegisterCredentials } from '
 interface AuthState {
   user: User | null;
   isLoading: boolean;
+  isGoogleLoading: boolean;
   error: string | null;
   initialized: boolean;
 }
@@ -12,6 +13,7 @@ interface AuthActions {
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: { name?: string; avatar?: string | null }) => Promise<void>;
   clearError: () => void;
@@ -20,6 +22,7 @@ interface AuthActions {
 export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   user: null,
   isLoading: false,
+  isGoogleLoading: false,
   error: null,
   initialized: false,
 
@@ -94,10 +97,85 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     }
   },
 
+  loginWithGoogle: async () => {
+    set({ isGoogleLoading: true, error: null });
+    try {
+      // Check if Firebase is configured
+      const { isFirebaseConfigured } = await import('@/lib/firebase');
+      if (!isFirebaseConfigured) {
+        set({ error: 'Google Sign-In is not configured. Please add Firebase credentials to your environment variables.', isGoogleLoading: false });
+        return;
+      }
+
+      // Dynamically import Firebase to avoid SSR issues
+      const { auth, googleProvider } = await import('@/lib/firebase');
+      const { signInWithPopup } = await import('firebase/auth');
+
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = result.user;
+
+      // Get ID token for server verification
+      const idToken = await credential.getIdToken();
+
+      // Send to our backend for verification and user creation/login
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idToken,
+          email: credential.email,
+          name: credential.displayName,
+          photoURL: credential.photoURL,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        set({ error: data.error || 'Google sign-in failed', isGoogleLoading: false });
+        return;
+      }
+
+      set({ user: data.user, isGoogleLoading: false, error: null });
+      // Navigate to dashboard after successful Google sign-in
+      const { useUIStore } = await import('./uiStore');
+      useUIStore.getState().navigate('dashboard');
+    } catch (err: unknown) {
+      console.error('Google sign-in error:', err);
+      // Handle specific Firebase errors
+      const firebaseError = err as { code?: string; message?: string };
+      if (firebaseError.code === 'auth/popup-closed-by-user') {
+        set({ error: null, isGoogleLoading: false });
+        return;
+      }
+      if (firebaseError.code === 'auth/popup-blocked') {
+        set({ error: 'Popup was blocked by your browser. Please allow popups and try again.', isGoogleLoading: false });
+        return;
+      }
+      if (firebaseError.code === 'auth/cancelled-popup-request') {
+        set({ error: null, isGoogleLoading: false });
+        return;
+      }
+      if (firebaseError.code === 'auth/network-request-failed') {
+        set({ error: 'Network error. Please check your connection and try again.', isGoogleLoading: false });
+        return;
+      }
+      set({ error: 'Google sign-in failed. Please try again.', isGoogleLoading: false });
+    }
+  },
+
   logout: async () => {
     set({ isLoading: true, error: null });
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+      // Sign out from Firebase if it was initialized
+      try {
+        const { auth } = await import('@/lib/firebase');
+        const { signOut } = await import('firebase/auth');
+        await signOut(auth);
+      } catch {
+        // Firebase sign out failed, continue with local logout
+      }
     } catch {
       // Continue with logout even if API call fails
     }
