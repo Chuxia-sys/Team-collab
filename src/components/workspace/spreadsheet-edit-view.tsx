@@ -7,7 +7,7 @@ import {
   Share2,
   Download,
   Plus,
-  TableProperties,
+  Table2,
   Rows3,
   Columns3,
   Trash2,
@@ -24,6 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiStore';
 import { useSpreadsheetStore } from '@/stores/spreadsheetStore';
 import { format } from 'date-fns';
@@ -44,6 +45,8 @@ export function SpreadsheetEditView() {
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [editingColIdx, setEditingColIdx] = useState<number | null>(null);
+  const [colEditValue, setColEditValue] = useState('');
 
   useEffect(() => {
     if (currentWorkspaceId && currentSpreadsheetId) {
@@ -119,6 +122,28 @@ export function SpreadsheetEditView() {
     setHasChanges(true);
   };
 
+  const handleColumnDoubleClick = (colIdx: number) => {
+    setEditingColIdx(colIdx);
+    setColEditValue(columns[colIdx]);
+  };
+
+  const handleColumnEditSubmit = () => {
+    if (editingColIdx !== null && colEditValue.trim()) {
+      updateColumnName(editingColIdx, colEditValue.trim());
+    }
+    setEditingColIdx(null);
+    setColEditValue('');
+  };
+
+  const handleColumnEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleColumnEditSubmit();
+    } else if (e.key === 'Escape') {
+      setEditingColIdx(null);
+      setColEditValue('');
+    }
+  };
+
   const addColumn = () => {
     const newColName = String.fromCharCode(65 + columns.length);
     setColumns([...columns, newColName]);
@@ -168,15 +193,18 @@ export function SpreadsheetEditView() {
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={handleBack}>
+          <Button variant="ghost" size="icon" onClick={handleBack} className="hover:bg-primary/10">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <Input
-            value={title}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            className="h-8 max-w-sm border-none text-lg font-semibold shadow-none focus-visible:ring-0"
-            placeholder="Spreadsheet title"
-          />
+          <div className="flex items-center gap-2">
+            <Table2 className="h-4 w-4 text-primary" />
+            <Input
+              value={title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              className="h-8 max-w-sm border-none text-lg font-semibold shadow-none focus-visible:ring-0"
+              placeholder="Spreadsheet title"
+            />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-2">
@@ -234,15 +262,28 @@ export function SpreadsheetEditView() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 border-b px-4 py-2">
-        <Button variant="outline" size="sm" onClick={addColumn} className="gap-1.5">
+      <div className="flex items-center gap-2 border-b px-4 py-2 bg-muted/30">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={addColumn}
+          className="gap-1.5 hover:bg-primary/5 hover:border-primary/30 hover:text-primary"
+        >
           <Columns3 className="h-3.5 w-3.5" />
           Add Column
         </Button>
-        <Button variant="outline" size="sm" onClick={addRow} className="gap-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={addRow}
+          className="gap-1.5 hover:bg-primary/5 hover:border-primary/30 hover:text-primary"
+        >
           <Rows3 className="h-3.5 w-3.5" />
           Add Row
         </Button>
+        <span className="text-xs text-muted-foreground ml-2">
+          {rows.length} rows × {columns.length} columns
+        </span>
       </div>
 
       {/* Spreadsheet Grid */}
@@ -252,46 +293,73 @@ export function SpreadsheetEditView() {
           animate={{ opacity: 1 }}
           className="overflow-x-auto"
         >
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse border border-border rounded-lg overflow-hidden">
             <thead>
-              <tr>
-                <th className="w-12 border border-border bg-muted/50 px-2 py-1.5 text-xs font-medium text-muted-foreground">
+              <tr className="bg-primary/5">
+                <th className="w-14 border border-border bg-muted/60 px-2 py-2 text-xs font-semibold text-muted-foreground text-center">
                   #
                 </th>
                 {columns.map((col, idx) => (
-                  <th key={idx} className="border border-border bg-muted/50 min-w-[120px]">
-                    <div className="flex items-center">
+                  <th key={idx} className="border border-border min-w-[140px] bg-muted/60 group/header relative">
+                    {editingColIdx === idx ? (
                       <Input
-                        value={col}
-                        onChange={(e) => updateColumnName(idx, e.target.value)}
-                        className="h-7 border-none shadow-none focus-visible:ring-0 text-xs font-medium text-center"
+                        autoFocus
+                        value={colEditValue}
+                        onChange={(e) => setColEditValue(e.target.value)}
+                        onBlur={handleColumnEditSubmit}
+                        onKeyDown={handleColumnEditKeyDown}
+                        className="h-8 border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary text-xs font-semibold text-center bg-primary/5"
                       />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100"
-                        onClick={() => removeColumn(idx)}
+                    ) : (
+                      <div
+                        className="flex items-center justify-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-primary/10 transition-colors"
+                        onDoubleClick={() => handleColumnDoubleClick(idx)}
                       >
-                        <Trash2 className="h-2.5 w-2.5" />
-                      </Button>
-                    </div>
+                        <span className="text-xs font-semibold text-foreground">{col}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 shrink-0 opacity-0 group-hover/header:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => { e.stopPropagation(); removeColumn(idx); }}
+                        >
+                          <Trash2 className="h-2.5 w-2.5" />
+                        </Button>
+                      </div>
+                    )}
                   </th>
                 ))}
+                <th className="w-10 border border-border bg-muted/30">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-full text-muted-foreground hover:text-primary"
+                    onClick={addColumn}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, rowIdx) => (
-                <tr key={rowIdx}>
-                  <td className="border border-border bg-muted/30 px-2 py-0 text-center text-xs text-muted-foreground">
-                    <div className="flex items-center justify-center gap-0.5">
-                      <span>{rowIdx + 1}</span>
+                <tr
+                  key={rowIdx}
+                  className={cn(
+                    'group/row transition-colors',
+                    rowIdx % 2 === 0 ? 'bg-background' : 'bg-muted/20',
+                    'hover:bg-primary/5'
+                  )}
+                >
+                  <td className="border border-border bg-muted/40 px-2 py-0 text-center">
+                    <div className="flex items-center justify-center gap-0.5 h-8">
+                      <span className="text-xs text-muted-foreground font-medium">{rowIdx + 1}</span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-4 w-4 opacity-0 hover:opacity-100"
+                        className="h-4 w-4 opacity-0 group-hover/row:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => removeRow(rowIdx)}
                       >
-                        <Trash2 className="h-2 w-2" />
+                        <Trash2 className="h-2.5 w-2.5" />
                       </Button>
                     </div>
                   </td>
@@ -301,15 +369,50 @@ export function SpreadsheetEditView() {
                         type="text"
                         value={cell}
                         onChange={(e) => updateCell(rowIdx, colIdx, e.target.value)}
-                        className="w-full h-8 px-2 text-sm bg-transparent outline-none focus:bg-primary/5 focus:ring-1 focus:ring-primary/30"
+                        className={cn(
+                          'w-full h-8 px-2.5 text-sm bg-transparent outline-none transition-colors',
+                          'focus:bg-primary/5 focus:ring-1 focus:ring-primary/30 focus:inset-shadow-sm',
+                          'placeholder:text-muted-foreground/40'
+                        )}
+                        placeholder="—"
                       />
                     </td>
                   ))}
+                  <td className="border border-border bg-muted/20" />
                 </tr>
               ))}
             </tbody>
           </table>
+
+          {/* Add Row button at bottom */}
+          <div className="mt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={addRow}
+              className="w-full gap-1.5 text-muted-foreground hover:text-primary border border-dashed border-muted-foreground/30 hover:border-primary/40"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Row
+            </Button>
+          </div>
         </motion.div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t px-4 py-2 bg-muted/20">
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          Back to Spreadsheets
+        </button>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span>{rows.length} rows</span>
+          <span>×</span>
+          <span>{columns.length} columns</span>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useChannelStore } from '@/stores/channelStore'
@@ -31,6 +31,9 @@ import {
   Users,
   ArrowRight,
   Sparkles,
+  CheckCircle2,
+  Circle,
+  Clock,
 } from 'lucide-react'
 
 const fadeUp = {
@@ -39,11 +42,32 @@ const fadeUp = {
 }
 
 const quickActions = [
-  { icon: MessageSquare, label: 'New Message', subView: 'channel' as const, color: 'bg-green-500/10 text-green-600' },
-  { icon: FileText, label: 'New Document', subView: 'documents' as const, color: 'bg-blue-500/10 text-blue-600' },
-  { icon: Table2, label: 'New Spreadsheet', subView: 'spreadsheets' as const, color: 'bg-amber-500/10 text-amber-600' },
-  { icon: Presentation, label: 'New Presentation', subView: 'presentations' as const, color: 'bg-purple-500/10 text-purple-600' },
+  { icon: MessageSquare, label: 'New Message', subView: 'channel' as const, gradient: 'from-emerald-500 to-emerald-600', iconBg: 'bg-white/20' },
+  { icon: FileText, label: 'New Document', subView: 'documents' as const, gradient: 'from-teal-500 to-teal-600', iconBg: 'bg-white/20' },
+  { icon: Table2, label: 'New Spreadsheet', subView: 'spreadsheets' as const, gradient: 'from-cyan-500 to-cyan-600', iconBg: 'bg-white/20' },
+  { icon: Presentation, label: 'New Presentation', subView: 'presentations' as const, gradient: 'from-amber-500 to-amber-600', iconBg: 'bg-white/20' },
 ]
+
+const gettingStartedItems = [
+  { icon: Hash, label: 'Create a channel', subView: 'home' as const, id: 'create-channel' },
+  { icon: Users, label: 'Invite a member', subView: 'members' as const, id: 'invite-member' },
+  { icon: FileText, label: 'Create a document', subView: 'documents' as const, id: 'create-doc' },
+]
+
+function getRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return date.toLocaleDateString()
+}
 
 export function WorkspaceHome() {
   const { currentWorkspace, currentWorkspaceId, members, loadMembers } = useWorkspaceStore()
@@ -61,6 +85,14 @@ export function WorkspaceHome() {
       loadMembers(currentWorkspaceId)
     }
   }, [currentWorkspaceId, loadChannels, loadMembers])
+
+  // Compute completed steps from data directly (no useEffect needed)
+  const completedSteps = useMemo(() => {
+    const completed = new Set<string>()
+    if (channels.length > 0) completed.add('create-channel')
+    if (members.length > 1) completed.add('invite-member')
+    return completed
+  }, [channels.length, members.length])
 
   const handleCreateChannel = async () => {
     if (!currentWorkspaceId || !channelName.trim()) return
@@ -100,23 +132,46 @@ export function WorkspaceHome() {
 
   const recentMembers = members.slice(0, 5)
   const currentSubView = useUIStore((s) => s.currentSubView)
+  const allStepsCompleted = gettingStartedItems.every((item) => completedSteps.has(item.id))
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
       <motion.div initial="initial" animate="animate" variants={{ animate: { transition: { staggerChildren: 0.08 } } }}>
-        {/* Welcome Section */}
+        {/* Welcome Banner */}
         <motion.div variants={fadeUp} className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="size-5 text-primary" />
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-              {currentWorkspace?.name || 'Workspace'}
-            </h1>
-          </div>
-          {currentWorkspace?.description && (
-            <p className="text-muted-foreground max-w-lg">
-              {currentWorkspace.description}
-            </p>
-          )}
+          <Card className="bg-gradient-to-br from-primary via-[#2d6a1e] to-secondary border-0 overflow-hidden relative">
+            {/* Decorative shapes */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5 blur-2xl" />
+            <div className="absolute -bottom-10 -left-10 w-60 h-60 rounded-full bg-white/5 blur-2xl" />
+            <CardContent className="p-6 sm:p-8 relative">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="size-5 text-white/80" />
+                <span className="text-sm text-white/60 font-medium">Welcome to</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                {currentWorkspace?.name || 'Workspace'}
+              </h1>
+              {currentWorkspace?.description ? (
+                <p className="text-white/60 max-w-lg">
+                  {currentWorkspace.description}
+                </p>
+              ) : (
+                <p className="text-white/60 max-w-lg">
+                  Start collaborating with your team by creating channels and inviting members.
+                </p>
+              )}
+              <div className="flex items-center gap-4 mt-4 text-sm text-white/50">
+                <div className="flex items-center gap-1.5">
+                  <Users className="size-4" />
+                  {members.length} member{members.length !== 1 ? 's' : ''}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Hash className="size-4" />
+                  {channels.length} channel{channels.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* Quick Actions */}
@@ -126,21 +181,77 @@ export function WorkspaceHome() {
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {quickActions.map((action) => (
-              <Card
+              <motion.div
                 key={action.label}
-                className="cursor-pointer hover:shadow-md hover:border-primary/30 transition-all group"
-                onClick={() => handleQuickAction(action.subView)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <div className={`flex size-10 items-center justify-center rounded-xl ${action.color} group-hover:scale-110 transition-transform`}>
-                    <action.icon className="size-5" />
-                  </div>
-                  <span className="text-xs font-medium">{action.label}</span>
-                </CardContent>
-              </Card>
+                <Card
+                  className="cursor-pointer border-0 overflow-hidden hover:shadow-lg transition-shadow group"
+                  onClick={() => handleQuickAction(action.subView)}
+                >
+                  <CardContent className={`p-4 flex flex-col items-center text-center gap-2.5 bg-gradient-to-br ${action.gradient} text-white`}>
+                    <div className={`flex size-10 items-center justify-center rounded-xl ${action.iconBg} group-hover:scale-110 transition-transform`}>
+                      <action.icon className="size-5" />
+                    </div>
+                    <span className="text-xs font-medium text-white/90">{action.label}</span>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
           </div>
         </motion.div>
+
+        {/* Getting Started Checklist */}
+        {!allStepsCompleted && (
+          <motion.div variants={fadeUp} className="mb-8">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+              Getting Started
+            </h2>
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <div className="space-y-3">
+                  {gettingStartedItems.map((item) => {
+                    const isCompleted = completedSteps.has(item.id)
+                    return (
+                      <div
+                        key={item.id}
+                        className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer ${
+                          isCompleted ? 'opacity-60' : 'hover:bg-accent'
+                        }`}
+                        onClick={() => {
+                          if (!isCompleted) {
+                            if (item.id === 'create-channel') {
+                              setCreateChannelOpen(true)
+                            } else {
+                              handleQuickAction(item.subView)
+                            }
+                          }
+                        }}
+                      >
+                        {isCompleted ? (
+                          <div className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <CheckCircle2 className="size-4" />
+                          </div>
+                        ) : (
+                          <div className="flex size-6 items-center justify-center rounded-full border-2 border-muted-foreground/30">
+                            <Circle className="size-3 text-transparent" />
+                          </div>
+                        )}
+                        <span className={`text-sm font-medium ${isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          {item.label}
+                        </span>
+                        {!isCompleted && (
+                          <ArrowRight className="size-3.5 text-muted-foreground ml-auto" />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Channels Section */}
         <motion.div variants={fadeUp} className="mb-8">
@@ -234,6 +345,11 @@ export function WorkspaceHome() {
                     {channel.isPrivate && (
                       <Badge variant="outline" className="text-[10px] h-5">Private</Badge>
                     )}
+                    {/* Last activity indicator */}
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="size-3" />
+                      {getRelativeTime(channel.updatedAt)}
+                    </div>
                     <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </div>

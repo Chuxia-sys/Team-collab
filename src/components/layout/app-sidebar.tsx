@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useChannelStore } from '@/stores/channelStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { cn } from '@/lib/utils'
+import { CreateChannelDialog } from '@/components/workspace/create-channel-dialog'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -58,6 +59,7 @@ export function AppSidebar() {
 
   const [channelsOpen, setChannelsOpen] = useState(true)
   const [collabOpen, setCollabOpen] = useState(true)
+  const [createChannelOpen, setCreateChannelOpen] = useState(false)
 
   useEffect(() => {
     if (currentWorkspaceId) {
@@ -217,7 +219,7 @@ export function AppSidebar() {
                       <SidebarMenuItem>
                         <SidebarMenuButton
                           tooltip="Add Channel"
-                          onClick={() => handleNavClick('channel')}
+                          onClick={() => setCreateChannelOpen(true)}
                           className="text-muted-foreground"
                         >
                           <Plus className="size-4" />
@@ -378,6 +380,8 @@ export function AppSidebar() {
           </SidebarMenu>
         )}
       </SidebarFooter>
+
+      <CreateChannelDialog open={createChannelOpen} onOpenChange={setCreateChannelOpen} />
     </Sidebar>
   )
 }

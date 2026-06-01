@@ -21,7 +21,9 @@ import { NotificationsView } from '@/components/workspace/notifications-view'
 import { SettingsView } from '@/components/workspace/settings-view'
 
 export function WorkspaceView() {
-  const { currentWorkspaceId, currentSubView, membersPanelOpen } = useUIStore()
+  const currentWorkspaceId = useUIStore((s) => s.currentWorkspaceId)
+  const currentSubView = useUIStore((s) => s.currentSubView)
+  const membersPanelOpen = useUIStore((s) => s.membersPanelOpen)
   const { switchWorkspace } = useWorkspaceStore()
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export function WorkspaceView() {
         <div className="flex flex-1 flex-col min-w-0">
           <AppHeader />
           <div className="flex flex-1 overflow-hidden">
-            <main className="flex-1 overflow-hidden">
+            <main className="flex-1 overflow-hidden" key={currentSubView}>
               {renderSubView()}
             </main>
             {membersPanelOpen && <MembersPanel />}

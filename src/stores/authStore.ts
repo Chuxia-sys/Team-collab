@@ -29,6 +29,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       if (res.ok) {
         const data: AuthResponse = await res.json();
         set({ user: data.user, initialized: true, isLoading: false });
+        // Update UI store to dashboard when user is found
+        const { useUIStore } = await import('./uiStore');
+        const uiState = useUIStore.getState();
+        if (uiState.currentView === 'login' || uiState.currentView === 'register' || uiState.currentView === 'landing') {
+          useUIStore.getState().navigate('dashboard');
+        }
       } else {
         set({ user: null, initialized: true, isLoading: false });
       }
@@ -54,6 +60,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       }
 
       set({ user: data.user, isLoading: false, error: null });
+      // Navigate to dashboard after successful login
+      const { useUIStore } = await import('./uiStore');
+      useUIStore.getState().navigate('dashboard');
     } catch {
       set({ error: 'Network error. Please try again.', isLoading: false });
     }
@@ -76,6 +85,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       }
 
       set({ user: data.user, isLoading: false, error: null });
+      // Navigate to dashboard after successful registration
+      const { useUIStore } = await import('./uiStore');
+      useUIStore.getState().navigate('dashboard');
     } catch {
       set({ error: 'Network error. Please try again.', isLoading: false });
     }
@@ -89,6 +101,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       // Continue with logout even if API call fails
     }
     set({ user: null, isLoading: false, error: null });
+    // Navigate to landing after logout
+    const { useUIStore } = await import('./uiStore');
+    useUIStore.getState().navigate('landing');
   },
 
   clearError: () => set({ error: null }),
