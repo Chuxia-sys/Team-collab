@@ -9,6 +9,7 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || '',
 };
 
 // Check if Firebase is properly configured
@@ -22,6 +23,7 @@ export const isFirebaseConfigured = Boolean(
 let app;
 let auth;
 let googleProvider;
+let analytics;
 
 if (isFirebaseConfigured) {
   try {
@@ -35,9 +37,18 @@ if (isFirebaseConfigured) {
     googleProvider.setCustomParameters({
       prompt: 'select_account',
     });
+
+    // Initialize Analytics (client-side only)
+    if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+      import('firebase/analytics').then(({ getAnalytics }) => {
+        analytics = getAnalytics(app);
+      }).catch(() => {
+        // Analytics not available
+      });
+    }
   } catch (error) {
     console.error('Firebase initialization error:', error);
   }
 }
 
-export { app, auth, googleProvider };
+export { app, auth, googleProvider, analytics };

@@ -193,41 +193,6 @@ export function LoginView() {
               <CardDescription>Sign in to your account to continue</CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Google Sign-In Button - only show if Firebase is configured */}
-              {isFirebaseConfigured && (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-11 font-medium relative"
-                    onClick={handleGoogleSignIn}
-                    disabled={isAuthLoading}
-                  >
-                    {isGoogleLoading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        <span>Signing in with Google...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2.5">
-                        <GoogleIcon className="size-5 shrink-0" />
-                        <span>Continue with Google</span>
-                      </div>
-                    )}
-                  </Button>
-
-                  {/* Divider */}
-                  <div className="relative my-5">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-border" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-card px-2 text-muted-foreground">or continue with email</span>
-                    </div>
-                  </div>
-                </>
-              )}
-
               {/* Email/Password Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 {error && (
@@ -322,6 +287,41 @@ export function LoginView() {
                   )}
                 </Button>
               </form>
+
+              {/* Google Sign-In - BELOW the Sign In button */}
+              {isFirebaseConfigured && (
+                <>
+                  {/* Divider */}
+                  <div className="relative my-5">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">or</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-11 font-medium relative border-border/80 hover:bg-accent/50 transition-all duration-200"
+                    onClick={handleGoogleSignIn}
+                    disabled={isAuthLoading}
+                  >
+                    {isGoogleLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        <span>Signing in with Google...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5">
+                        <GoogleIcon className="size-5 shrink-0" />
+                        <span>Continue with Google</span>
+                      </div>
+                    )}
+                  </Button>
+                </>
+              )}
 
               <div className="mt-6 text-center text-sm">
                 <span className="text-muted-foreground">Don&apos;t have an account? </span>

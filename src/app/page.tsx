@@ -11,10 +11,11 @@ import { WorkspaceView } from '@/components/views/workspace-view'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { ProfileDialog } from '@/components/layout/profile-dialog'
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog'
+import { AccountSettingsDialog } from '@/components/layout/account-settings-dialog'
 
 export default function Home() {
   const { initialized, user } = useAuthStore()
-  const { currentView, profileDialogOpen, setProfileDialogOpen } = useUIStore()
+  const { currentView, profileDialogOpen, setProfileDialogOpen, accountSettingsOpen, setAccountSettingsOpen } = useUIStore()
 
   // Initialize auth on mount
   useEffect(() => {
@@ -70,6 +71,10 @@ export default function Home() {
       <ProfileDialog
         open={profileDialogOpen}
         onOpenChange={setProfileDialogOpen}
+      />
+      <AccountSettingsDialog
+        open={accountSettingsOpen}
+        onOpenChange={setAccountSettingsOpen}
       />
       <KeyboardShortcutsDialog />
     </>

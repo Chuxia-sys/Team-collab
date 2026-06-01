@@ -16,6 +16,7 @@ interface UIState {
   commandPaletteOpen: boolean;
   profileDialogOpen: boolean;
   keyboardShortcutsOpen: boolean;
+  accountSettingsOpen: boolean;
   onboardingSeen: boolean;
 }
 
@@ -28,6 +29,7 @@ interface UIActions {
   setCommandPaletteOpen: (open: boolean) => void;
   setProfileDialogOpen: (open: boolean) => void;
   setKeyboardShortcutsOpen: (open: boolean) => void;
+  setAccountSettingsOpen: (open: boolean) => void;
   setOnboardingSeen: (seen: boolean) => void;
 }
 
@@ -47,6 +49,7 @@ export const useUIStore = create<UIState & UIActions>()(
       commandPaletteOpen: false,
       profileDialogOpen: false,
       keyboardShortcutsOpen: false,
+      accountSettingsOpen: false,
       onboardingSeen: false,
 
       navigate: (view: AppView, params?: NavigateParams) => {
@@ -126,6 +129,10 @@ export const useUIStore = create<UIState & UIActions>()(
 
       setKeyboardShortcutsOpen: (open: boolean) => {
         set({ keyboardShortcutsOpen: open });
+      },
+
+      setAccountSettingsOpen: (open: boolean) => {
+        set({ accountSettingsOpen: open });
       },
 
       setOnboardingSeen: (seen: boolean) => {

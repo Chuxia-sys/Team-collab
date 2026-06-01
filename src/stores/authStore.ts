@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { User, AuthResponse, LoginCredentials, RegisterCredentials } from '@/types';
+import { toast } from '@/hooks/use-toast';
 
 interface AuthState {
   user: User | null;
@@ -41,6 +42,49 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
           useUIStore.getState().navigate('dashboard');
         }
       } else {
+        // No server session - check if Firebase has a persisted auth state
+        try {
+          const firebaseModule = await import('@/lib/firebase');
+          if (firebaseModule.isFirebaseConfigured && firebaseModule.auth) {
+            const { onAuthStateChanged } = await import('firebase/auth');
+            onAuthStateChanged(firebaseModule.auth, async (firebaseUser) => {
+              if (firebaseUser) {
+                try {
+                  // Firebase user exists but no server session - re-establish session
+                  const idToken = await firebaseUser.getIdToken();
+                  const res = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      idToken,
+                      email: firebaseUser.email,
+                      name: firebaseUser.displayName,
+                      photoURL: firebaseUser.photoURL,
+                    }),
+                  });
+                  if (res.ok) {
+                    const data: AuthResponse = await res.json();
+                    set({ user: data.user, initialized: true, isLoading: false });
+                    const { useUIStore } = await import('./uiStore');
+                    const uiState = useUIStore.getState();
+                    if (uiState.currentView === 'login' || uiState.currentView === 'register' || uiState.currentView === 'landing') {
+                      useUIStore.getState().navigate('dashboard');
+                    }
+                    toast({ title: 'Welcome back!', description: `Signed in as ${data.user.name}` });
+                    return;
+                  }
+                } catch {
+                  // Failed to re-establish session
+                }
+              }
+              // No Firebase user either - truly unauthenticated
+              set({ user: null, initialized: true, isLoading: false });
+            });
+            return; // Don't set initialized yet - wait for onAuthStateChanged
+          }
+        } catch {
+          // Firebase check failed, continue as unauthenticated
+        }
         set({ user: null, initialized: true, isLoading: false });
       }
     } catch {
@@ -68,6 +112,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       // Navigate to dashboard after successful login
       const { useUIStore } = await import('./uiStore');
       useUIStore.getState().navigate('dashboard');
+      toast({ title: 'Welcome back!', description: `Signed in as ${data.user.name}` });
     } catch {
       set({ error: 'Network error. Please try again.', isLoading: false });
     }
@@ -93,6 +138,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       // Navigate to dashboard after successful registration
       const { useUIStore } = await import('./uiStore');
       useUIStore.getState().navigate('dashboard');
+      toast({ title: 'Account created!', description: `Welcome to TeamCollab, ${data.user.name}!` });
     } catch {
       set({ error: 'Network error. Please try again.', isLoading: false });
     }
@@ -105,6 +151,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       const { isFirebaseConfigured } = await import('@/lib/firebase');
       if (!isFirebaseConfigured) {
         set({ error: 'Google Sign-In is not configured. Please add Firebase credentials to your environment variables.', isGoogleLoading: false });
+        toast({ title: 'Google Sign-In unavailable', description: 'Firebase is not configured. Please add your Firebase credentials.', variant: 'destructive' });
         return;
       }
 
@@ -134,6 +181,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
 
       if (!res.ok) {
         set({ error: data.error || 'Google sign-in failed', isGoogleLoading: false });
+        toast({ title: 'Google Sign-In failed', description: data.error || 'Could not sign in with Google. Please try again.', variant: 'destructive' });
         return;
       }
 
@@ -141,6 +189,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       // Navigate to dashboard after successful Google sign-in
       const { useUIStore } = await import('./uiStore');
       useUIStore.getState().navigate('dashboard');
+      toast({ title: 'Welcome back!', description: `Signed in as ${data.user.name}` });
     } catch (err: unknown) {
       console.error('Google sign-in error:', err);
       // Handle specific Firebase errors
@@ -151,6 +200,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       }
       if (firebaseError.code === 'auth/popup-blocked') {
         set({ error: 'Popup was blocked by your browser. Please allow popups and try again.', isGoogleLoading: false });
+        toast({ title: 'Popup blocked', description: 'Please allow popups in your browser settings and try again.', variant: 'destructive' });
         return;
       }
       if (firebaseError.code === 'auth/cancelled-popup-request') {
@@ -159,9 +209,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       }
       if (firebaseError.code === 'auth/network-request-failed') {
         set({ error: 'Network error. Please check your connection and try again.', isGoogleLoading: false });
+        toast({ title: 'Network error', description: 'Please check your connection and try again.', variant: 'destructive' });
         return;
       }
       set({ error: 'Google sign-in failed. Please try again.', isGoogleLoading: false });
+      toast({ title: 'Google Sign-In failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
     }
   },
 
@@ -171,9 +223,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       await fetch('/api/auth/logout', { method: 'POST' });
       // Sign out from Firebase if it was initialized
       try {
-        const { auth } = await import('@/lib/firebase');
-        const { signOut } = await import('firebase/auth');
-        await signOut(auth);
+        const firebaseModule = await import('@/lib/firebase');
+        if (firebaseModule.auth) {
+          const { signOut } = await import('firebase/auth');
+          await signOut(firebaseModule.auth);
+        }
       } catch {
         // Firebase sign out failed, continue with local logout
       }
@@ -184,6 +238,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     // Navigate to landing after logout
     const { useUIStore } = await import('./uiStore');
     useUIStore.getState().navigate('landing');
+    toast({ title: 'Signed out', description: 'You have been successfully signed out.' });
   },
 
   updateProfile: async (data: { name?: string; avatar?: string | null }) => {

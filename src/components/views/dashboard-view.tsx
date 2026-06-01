@@ -424,20 +424,25 @@ export function DashboardView() {
               <span className="text-lg font-bold">TeamCollab</span>
             </div>
             <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2">
+              {user?.authProvider === 'google' && user?.photoURL ? (
+                <Avatar className="size-8 ring-2 ring-primary/30">
+                  <AvatarImage src={user.photoURL} alt={user.name || ''} />
+                </Avatar>
+              ) : (
                 <Avatar className="size-8">
-                  <AvatarImage src={user?.photoURL || undefined} alt={user?.name || ''} />
                   <AvatarFallback className={`${user?.avatar || 'bg-primary/10'} ${user?.avatar ? 'text-white' : 'text-primary'} text-xs`}>
                     {user?.name ? getInitials(user.name) : 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-foreground">{user?.name}</span>
-                {user?.authProvider === 'google' && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                    Google
-                  </Badge>
-                )}
-              </div>
+              )}
+              <span className="text-sm font-medium text-foreground">{user?.name}</span>
+              {user?.authProvider === 'google' && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/30 shadow-sm">
+                  Google
+                </Badge>
+              )}
+            </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -486,6 +491,35 @@ export function DashboardView() {
             )}
           </div>
         </motion.div>
+
+        {/* Google user welcome card */}
+        {user?.authProvider === 'google' && user?.photoURL && (
+          <motion.div
+            className="mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+          >
+            <Card className="overflow-hidden border-primary/20">
+              <CardContent className="p-0">
+                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-primary/5 via-blue-50/30 to-emerald-50/30 dark:from-primary/10 dark:via-blue-950/10 dark:to-emerald-950/10">
+                  <Avatar className="size-14 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+                    <AvatarImage src={user.photoURL} alt={user.name || ''} />
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-foreground">Signed in with Google</p>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/30 shadow-sm">
+                        Google
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Stats Row with Sparklines */}
         <motion.div
