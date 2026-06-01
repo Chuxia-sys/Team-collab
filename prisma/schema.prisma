@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  avatar        String?
+  status        String   @default("online") // online, offline, away, busy
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  workspaces    WorkspaceMember[]
+  messages      Message[]
+  notifications Notification[]
+  createdTasks  Task[]    @relation("TaskCreator")
+  assignedTasks Task[]    @relation("TaskAssignee")
+  documents     Document[] @relation("DocumentCreator")
+  spreadsheets  Spreadsheet[] @relation("SpreadsheetCreator")
+  presentations Presentation[] @relation("PresentationCreator")
+  createdWorkspaces Workspace[] @relation("WorkspaceCreator")
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  avatar      String?
+  inviteCode  String   @unique @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String
+
+  // Relations
+  members     WorkspaceMember[]
+  channels    Channel[]
+  documents   Document[]
+  spreadsheets Spreadsheet[]
+  presentations Presentation[]
+  tasks       Task[]
+  messages    Message[]
+  creator     User @relation("WorkspaceCreator", fields: [createdBy], references: [id])
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String   @default("member") // owner, admin, moderator, member, guest
+  joinedAt    DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model Channel {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  description   String   @default("")
+  type          String   @default("text") // text, voice, announcement
+  isPrivate     Boolean  @default(false)
+  topic         String?
+  archived      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages      Message[]
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  channelId   String
+  workspaceId String
+  userId      String
+  content     String
+  isEdited    Boolean   @default(false)
+  isPinned    Boolean   @default(false)
+  isDeleted   Boolean   @default(false)
+  parentId    String?
+  replyCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  channel     Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String   @default("Untitled Document")
+  content     String   @default("")
+  version     Int      @default(1)
+  tags        String   @default("") // comma-separated
+  folder      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String
+  updatedBy   String
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator     User      @relation("DocumentCreator", fields: [createdBy], references: [id])
+}
+
+model Spreadsheet {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String   @default("Untitled Spreadsheet")
+  columns     String   @default("[]") // JSON string
+  rows        String   @default("[]") // JSON string
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String
+  updatedBy   String
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator     User      @relation("SpreadsheetCreator", fields: [createdBy], references: [id])
+}
+
+model Presentation {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String   @default("Untitled Presentation")
+  slides      String   @default("[]") // JSON string
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String
+  updatedBy   String
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator     User      @relation("PresentationCreator", fields: [createdBy], references: [id])
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String
+  description String   @default("")
+  status      String   @default("todo") // backlog, todo, in_progress, review, done
+  priority    String   @default("medium") // urgent, high, medium, low
+  assigneeId  String?
+  createdBy   String
+  dueDate     DateTime?
+  tags        String   @default("") // comma-separated
+  order       Int      @default(0)
+  parentId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator     User      @relation("TaskCreator", fields: [createdBy], references: [id])
+  assignee    User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   @default("info") // mention, message, invite, task_assigned, etc.
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  link        String?
+  actorId     String?
+  workspaceId String?
+  createdAt   DateTime @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

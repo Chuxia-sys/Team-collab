@@ -1,0 +1,160 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-tc-green: #468432;
+  --color-tc-dark: #0D530E;
+  --color-tc-light: #EEF3EC;
+  --color-tc-bg: #F7F9F7;
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: #F7F9F7;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --popover: #ffffff;
+  --popover-foreground: #111111;
+  --primary: #468432;
+  --primary-foreground: #ffffff;
+  --secondary: #0D530E;
+  --secondary-foreground: #ffffff;
+  --muted: #F7F9F7;
+  --muted-foreground: #4B5563;
+  --accent: #EEF3EC;
+  --accent-foreground: #0D530E;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #D1D5DB;
+  --input: #D1D5DB;
+  --ring: #468432;
+  --chart-1: #468432;
+  --chart-2: #0D530E;
+  --chart-3: #6B9F5B;
+  --chart-4: #8BB77E;
+  --chart-5: #C5DBC0;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #111111;
+  --sidebar-primary: #468432;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #EEF3EC;
+  --sidebar-accent-foreground: #0D530E;
+  --sidebar-border: #D1D5DB;
+  --sidebar-ring: #468432;
+}
+
+.dark {
+  --background: #0f1a0f;
+  --foreground: #e8f0e8;
+  --card: #1a2e1a;
+  --card-foreground: #e8f0e8;
+  --popover: #1a2e1a;
+  --popover-foreground: #e8f0e8;
+  --primary: #6B9F5B;
+  --primary-foreground: #0f1a0f;
+  --secondary: #8BB77E;
+  --secondary-foreground: #0f1a0f;
+  --muted: #1a2e1a;
+  --muted-foreground: #9ca3af;
+  --accent: #1a3a1a;
+  --accent-foreground: #6B9F5B;
+  --destructive: #f87171;
+  --destructive-foreground: #0f1a0f;
+  --border: #2d4a2d;
+  --input: #2d4a2d;
+  --ring: #6B9F5B;
+  --chart-1: #6B9F5B;
+  --chart-2: #8BB77E;
+  --chart-3: #468432;
+  --chart-4: #C5DBC0;
+  --chart-5: #0D530E;
+  --sidebar: #1a2e1a;
+  --sidebar-foreground: #e8f0e8;
+  --sidebar-primary: #6B9F5B;
+  --sidebar-primary-foreground: #0f1a0f;
+  --sidebar-accent: #1a3a1a;
+  --sidebar-accent-foreground: #6B9F5B;
+  --sidebar-border: #2d4a2d;
+  --sidebar-ring: #6B9F5B;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 3px;
+}
+
+/* Typing indicator animation */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.typing-dot {
+  animation: pulse-dot 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
