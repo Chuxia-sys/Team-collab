@@ -37,7 +37,8 @@ export function useSocket() {
   useEffect(() => {
     if (!user) return
 
-    const socket = io('/?XTransformPort=3003', {
+    const socket = io('http://localhost:3003', {
+      path: '/',
       transports: ['websocket', 'polling'],
       forceNew: true,
       reconnection: true,
@@ -327,6 +328,17 @@ export function useSocket() {
     },
     [user]
   )
+
+  // Store emit functions in the realtime store so other components can use them
+  useEffect(() => {
+    useRealtimeStore.getState().setSocketEmits({
+      emitTypingStart,
+      emitTypingStop,
+      emitNewMessage,
+      emitMessageEdited,
+      emitMessageDeleted,
+    })
+  }, [emitTypingStart, emitTypingStop, emitNewMessage, emitMessageEdited, emitMessageDeleted])
 
   return {
     emitTypingStart,

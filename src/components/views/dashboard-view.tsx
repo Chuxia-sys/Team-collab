@@ -68,7 +68,7 @@ import {
   Compass,
   Lightbulb,
   MessageCircle,
-  Copy,
+  Copy as CopyIcon,
 } from 'lucide-react'
 import { JoinWorkspaceDialog } from '@/components/workspace/join-workspace-dialog'
 import {
@@ -1054,7 +1054,7 @@ export function DashboardView() {
                   }}
                   disabled={!inviteCodeValue || isRegenerating}
                 >
-                  <Copy className="size-4 mr-2" />
+                  <CopyIcon className="size-4 mr-2" />
                   Copy Code
                 </Button>
                 <Button

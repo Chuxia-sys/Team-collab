@@ -36,11 +36,33 @@ export interface PresenceUpdate {
   status: 'online' | 'offline' | 'away' | 'busy'
 }
 
+// ---- Socket Emit Function Types ----
+export interface SocketEmits {
+  emitTypingStart: (channelId: string) => void
+  emitTypingStop: (channelId: string) => void
+  emitNewMessage: (data: {
+    messageId: string
+    channelId: string
+    workspaceId: string
+    content: string
+    parentId?: string
+    createdAt: string
+  }) => void
+  emitMessageEdited: (data: {
+    messageId: string
+    channelId: string
+    content: string
+    isEdited: boolean
+  }) => void
+  emitMessageDeleted: (data: { messageId: string; channelId: string }) => void
+}
+
 interface RealtimeState {
   isConnected: boolean
   onlineUsers: OnlineUser[]
   typingUsers: Record<string, TypingUser[]> // channelId -> typing users
   userPresence: Record<string, 'online' | 'offline' | 'away' | 'busy'> // userId -> status
+  socketEmits: SocketEmits | null
 }
 
 interface RealtimeActions {
@@ -53,6 +75,7 @@ interface RealtimeActions {
   removeTypingUser: (channelId: string, userId: string) => void
   updatePresence: (data: PresenceUpdate) => void
   clearTypingForChannel: (channelId: string) => void
+  setSocketEmits: (emits: SocketEmits) => void
   reset: () => void
 }
 
@@ -61,6 +84,7 @@ const initialState: RealtimeState = {
   onlineUsers: [],
   typingUsers: {},
   userPresence: {},
+  socketEmits: null,
 }
 
 export const useRealtimeStore = create<RealtimeState & RealtimeActions>(
@@ -162,6 +186,8 @@ export const useRealtimeStore = create<RealtimeState & RealtimeActions>(
         delete newTyping[channelId]
         return { typingUsers: newTyping }
       }),
+
+    setSocketEmits: (emits) => set({ socketEmits: emits }),
 
     reset: () => set(initialState),
   })

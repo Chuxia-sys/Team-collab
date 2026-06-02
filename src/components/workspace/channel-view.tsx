@@ -49,6 +49,7 @@ import { useChannelStore } from '@/stores/channelStore';
 import { useMessageStore } from '@/stores/messageStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useRealtimeStore } from '@/stores/realtimeStore';
 import { EmojiPicker } from '@/components/workspace/emoji-picker';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 
@@ -141,7 +142,7 @@ function HighlightedText({ text, highlight }: { text: string; highlight: string 
 }
 
 export function ChannelView() {
-  const { currentWorkspaceId, currentChannelId } = useUIStore();
+  const { currentWorkspaceId, currentChannelId, navigate } = useUIStore();
   const { channels, currentChannel, setCurrentChannel, loadChannels } = useChannelStore();
   const {
     messages,
@@ -158,6 +159,7 @@ export function ChannelView() {
   } = useMessageStore();
   const { user } = useAuthStore();
   const { members } = useWorkspaceStore();
+  const socketEmits = useRealtimeStore((s) => s.socketEmits);
 
   const [inputValue, setInputValue] = useState('');
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
@@ -170,6 +172,8 @@ export function ChannelView() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
 
   // Load channels if not loaded
   useEffect(() => {
@@ -180,13 +184,30 @@ export function ChannelView() {
 
   // Set current channel from channels list
   useEffect(() => {
-    if (currentChannelId && channels.length > 0) {
-      const found = channels.find((c) => c.id === currentChannelId);
-      if (found && found.id !== currentChannel?.id) {
-        setCurrentChannel(found);
+    if (channels.length > 0) {
+      if (currentChannelId) {
+        const found = channels.find((c) => c.id === currentChannelId);
+        if (found) {
+          if (found.id !== currentChannel?.id) {
+            setCurrentChannel(found);
+          }
+          return;
+        }
+      }
+      // currentChannelId is stale or not set — fall back to first channel
+      const fallback = channels.find((c) => c.name === 'general') || channels[0];
+      if (fallback) {
+        setCurrentChannel(fallback);
+        if (currentWorkspaceId) {
+          navigate('workspace', {
+            workspaceId: currentWorkspaceId,
+            subView: 'channel',
+            channelId: fallback.id,
+          });
+        }
       }
     }
-  }, [currentChannelId, channels, currentChannel, setCurrentChannel]);
+  }, [currentChannelId, channels, currentChannel, setCurrentChannel, currentWorkspaceId, navigate]);
 
   useEffect(() => {
     if (currentWorkspaceId && currentChannelId) {
@@ -205,6 +226,60 @@ export function ChannelView() {
       inputRef.current?.focus();
     }
   }, [replyingTo, editingMessage]);
+
+  // Typing indicator: emit typing-start/stop based on input value
+  useEffect(() => {
+    if (!currentChannelId || !socketEmits) return;
+
+    if (inputValue.trim() && !isTypingRef.current) {
+      // User started typing
+      isTypingRef.current = true;
+      socketEmits.emitTypingStart(currentChannelId);
+    } else if (!inputValue.trim() && isTypingRef.current) {
+      // User stopped typing (cleared input)
+      isTypingRef.current = false;
+      socketEmits.emitTypingStop(currentChannelId);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    // Reset the inactivity timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    if (inputValue.trim()) {
+      typingTimeoutRef.current = setTimeout(() => {
+        if (isTypingRef.current) {
+          isTypingRef.current = false;
+          socketEmits.emitTypingStop(currentChannelId);
+        }
+      }, 2000);
+    }
+
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [inputValue, currentChannelId, socketEmits]);
+
+  // Cleanup typing timer on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      // Emit typing stop if user was typing when leaving
+      if (isTypingRef.current && currentChannelId && socketEmits) {
+        socketEmits.emitTypingStop(currentChannelId);
+      }
+      isTypingRef.current = false;
+    };
+  }, [currentChannelId, socketEmits]);
 
   // Search functionality
   const searchResults = useMemo(() => {
@@ -253,8 +328,17 @@ export function ChannelView() {
     if (!inputValue.trim() || !currentWorkspaceId || !currentChannelId) return;
 
     if (editingMessage) {
-      await editMessage(editingMessage.id, inputValue.trim());
+      const content = inputValue.trim();
+      await editMessage(editingMessage.id, content);
       setInputValue('');
+
+      // Broadcast edit in real-time
+      socketEmits?.emitMessageEdited({
+        messageId: editingMessage.id,
+        channelId: currentChannelId,
+        content,
+        isEdited: true,
+      });
       return;
     }
 
@@ -265,7 +349,21 @@ export function ChannelView() {
       replyingTo?.id
     );
     setInputValue('');
-  }, [inputValue, currentWorkspaceId, currentChannelId, editingMessage, replyingTo, editMessage, sendMessage]);
+
+    // Broadcast new message in real-time
+    const msgs = useMessageStore.getState().messages;
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg) {
+      socketEmits?.emitNewMessage({
+        messageId: lastMsg.id,
+        channelId: currentChannelId,
+        workspaceId: currentWorkspaceId,
+        content: lastMsg.content,
+        parentId: lastMsg.parentId || undefined,
+        createdAt: lastMsg.createdAt,
+      });
+    }
+  }, [inputValue, currentWorkspaceId, currentChannelId, editingMessage, replyingTo, editMessage, sendMessage, socketEmits]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -307,8 +405,15 @@ export function ChannelView() {
   const handleDelete = useCallback(
     async (messageId: string) => {
       await deleteMessage(messageId);
+      // Broadcast deletion in real-time
+      if (currentChannelId) {
+        socketEmits?.emitMessageDeleted({
+          messageId,
+          channelId: currentChannelId,
+        });
+      }
     },
-    [deleteMessage]
+    [deleteMessage, currentChannelId, socketEmits]
   );
 
   const handlePin = useCallback(

@@ -752,6 +752,16 @@ class FirestoreSubModel<T extends Record<string, unknown>> {
     return null;
   }
 
+  /**
+   * findFirst for FirestoreSubModel — tries findUnique first, then falls back to findMany with take 1.
+   */
+  async findFirst(params: { where: Record<string, unknown>; select?: Record<string, unknown>; include?: Record<string, unknown> } = {}): Promise<T | null> {
+    const uniqueResult = await this.findUnique({ where: params.where, select: params.select, include: params.include });
+    if (uniqueResult) return uniqueResult;
+    const results = await this.findMany({ where: params.where, select: params.select, include: params.include, take: 1 });
+    return results.length > 0 ? results[0] : null;
+  }
+
   async findMany(params: FirestoreFindManyParams & { parentId?: string; select?: Record<string, unknown>; include?: Record<string, unknown> } = {}): Promise<T[]> {
     const db = getDb();
     const parentId = params.parentId || (params.where as any)?.workspaceId || (params.where as any)?.userId;
@@ -1102,7 +1112,7 @@ export async function getMessages(workspaceId: string, channelId: string, opts: 
   const snapshot = await getDocs(q);
   const results: any[] = [];
   snapshot.forEach((doc) => {
-    results.push({ id: doc.id, ...doc.data() });
+    results.push(serializeTimestamps({ id: doc.id, ...doc.data() }));
   });
   return results;
 }
@@ -1318,21 +1328,22 @@ export const firestoreDb = {
     },
 
     findFirst: async (params: any = {}) => {
-      const results = await db.message.findMany({ ...params, take: 1 } as any);
+      const results = await firestoreDb.message.findMany({ ...params, take: 1 } as any);
       return results.length > 0 ? results[0] : null;
     },
 
     count: async (params: any = {}) => {
-      const results = await db.message.findMany(params as any);
+      const results = await firestoreDb.message.findMany(params as any);
       return results.length;
     },
 
     create: async (params: { data: Record<string, unknown> }) => {
-      return createMessage(
+      const result = await createMessage(
         params.data.workspaceId as string,
         params.data.channelId as string,
         params.data
       );
+      return serializeTimestamps(result);
     },
     update: async (params: any = {}) => {
       const { where, data, include } = params;
@@ -1341,7 +1352,7 @@ export const firestoreDb = {
 
       // Re-fetch with include if needed
       if (include) {
-        return db.message.findUnique({ where, include } as any);
+        return firestoreDb.message.findUnique({ where, include } as any);
       }
       return null;
     },
