@@ -148,7 +148,7 @@ export function KeyboardShortcutsDialog() {
               <div className="space-y-2">
                 {group.shortcuts.map((shortcut) => (
                   <div
-                    key={shortcut.description}
+                    key={shortcut.description + '-' + shortcut.keys.join('-')}
                     className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-accent/50 transition-colors"
                   >
                     <span className="text-sm text-muted-foreground">{shortcut.description}</span>

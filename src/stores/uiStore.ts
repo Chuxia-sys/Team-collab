@@ -18,6 +18,7 @@ interface UIState {
   keyboardShortcutsOpen: boolean;
   accountSettingsOpen: boolean;
   onboardingSeen: boolean;
+  pendingQuickAction: string | null;
 }
 
 interface UIActions {
@@ -31,6 +32,7 @@ interface UIActions {
   setKeyboardShortcutsOpen: (open: boolean) => void;
   setAccountSettingsOpen: (open: boolean) => void;
   setOnboardingSeen: (seen: boolean) => void;
+  setPendingQuickAction: (action: string | null) => void;
 }
 
 export const useUIStore = create<UIState & UIActions>()(
@@ -51,6 +53,7 @@ export const useUIStore = create<UIState & UIActions>()(
       keyboardShortcutsOpen: false,
       accountSettingsOpen: false,
       onboardingSeen: false,
+      pendingQuickAction: null,
 
       navigate: (view: AppView, params?: NavigateParams) => {
         const updates: Partial<UIState> = { currentView: view };
@@ -137,6 +140,10 @@ export const useUIStore = create<UIState & UIActions>()(
 
       setOnboardingSeen: (seen: boolean) => {
         set({ onboardingSeen: seen });
+      },
+
+      setPendingQuickAction: (action: string | null) => {
+        set({ pendingQuickAction: action });
       },
     }),
     {

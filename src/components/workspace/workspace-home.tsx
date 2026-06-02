@@ -202,6 +202,10 @@ export function WorkspaceHome() {
       setCreateChannelOpen(true)
       return
     }
+    // Set pending action so the target view can auto-open its dialog
+    if (action === 'add-member' || action === 'invite-member' || action === 'new-task') {
+      useUIStore.getState().setPendingQuickAction(action)
+    }
     navigate('workspace', {
       workspaceId: currentWorkspaceId,
       subView: subView as typeof currentSubView,

@@ -205,6 +205,15 @@ export function TasksView() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [pendingActionHandled, setPendingActionHandled] = useState(false);
+
+  // Auto-open create task dialog when triggered from quick action (render-time)
+  const pendingAction = useUIStore.getState().pendingQuickAction;
+  if (pendingAction && !pendingActionHandled && pendingAction === 'new-task') {
+    useUIStore.getState().setPendingQuickAction(null);
+    setCreateDialogOpen(true);
+    setPendingActionHandled(true);
+  }
 
   // Filter state
   const [filterPriority, setFilterPriority] = useState<string>('all');

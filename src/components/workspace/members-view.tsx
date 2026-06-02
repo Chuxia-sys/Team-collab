@@ -94,15 +94,24 @@ export function MembersView() {
   const [inviteRole, setInviteRole] = useState<string>('member');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
+  const [pendingActionHandled, setPendingActionHandled] = useState(false);
+
+  // Auto-open invite dialog when triggered from quick action (render-time)
+  const pendingAction = useUIStore.getState().pendingQuickAction;
+  if (pendingAction && !pendingActionHandled && (pendingAction === 'add-member' || pendingAction === 'invite-member') && canManage) {
+    useUIStore.getState().setPendingQuickAction(null);
+    setInviteDialogOpen(true);
+    setPendingActionHandled(true);
+  }
+
+  const currentUserRole = currentWorkspaceId ? workspaceRoles[user?.id || ''] : null;
+  const canManage = currentUserRole === 'owner' || currentUserRole === 'admin';
 
   useEffect(() => {
     if (currentWorkspaceId) {
       loadMembers(currentWorkspaceId);
     }
   }, [currentWorkspaceId, loadMembers]);
-
-  const currentUserRole = currentWorkspaceId ? workspaceRoles[user?.id || ''] : null;
-  const canManage = currentUserRole === 'owner' || currentUserRole === 'admin';
 
   // Use real-time presence to determine online status
   const getEffectiveStatus = (member: typeof members[0]) => {
@@ -307,22 +316,15 @@ export function MembersView() {
                         </p>
                       </div>
 
-                      <Badge
-                        variant="outline"
-                        className={cn('gap-1 text-xs', role.color)}
-                      >
-                        {role.icon}
-                        {role.label}
-                      </Badge>
-
-                      {canModifyThisMember && (
+                      {canModifyThisMember ? (
                         <div className="flex items-center gap-1">
                           <Select
                             value={member.role}
                             onValueChange={(val) => handleRoleChange(member.userId, val)}
                           >
-                            <SelectTrigger className="h-7 w-7 p-0 border-none">
-                              <UserCog className="h-4 w-4 text-muted-foreground" />
+                            <SelectTrigger className={cn('h-8 gap-1.5 px-2.5 text-xs font-medium border bg-background hover:bg-accent', role.color)}>
+                              {role.icon}
+                              {role.label}
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="admin">Admin</SelectItem>
@@ -334,7 +336,7 @@ export function MembersView() {
 
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
@@ -358,6 +360,14 @@ export function MembersView() {
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className={cn('gap-1 text-xs', role.color)}
+                        >
+                          {role.icon}
+                          {role.label}
+                        </Badge>
                       )}
                     </div>
                   </motion.div>
