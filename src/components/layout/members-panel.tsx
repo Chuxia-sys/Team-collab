@@ -63,6 +63,7 @@ export function MembersPanel() {
   const [inviteRole, setInviteRole] = useState('member')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
   const [generatingCode, setGeneratingCode] = useState(false)
 
@@ -126,11 +127,21 @@ export function MembersPanel() {
   const handleInvite = async () => {
     if (!currentWorkspaceId || !inviteEmail) return
     setInviteLoading(true)
+    setInviteError(null)
     try {
       await inviteMember(currentWorkspaceId, inviteEmail, inviteRole as 'admin' | 'moderator' | 'member' | 'guest')
+      // Check if the store has an error after the call
+      const storeError = useWorkspaceStore.getState().error
+      if (storeError) {
+        setInviteError(storeError)
+        return
+      }
       setInviteEmail('')
       setInviteRole('member')
       setInviteOpen(false)
+      setInviteError(null)
+    } catch {
+      setInviteError('Network error. Please try again.')
     } finally {
       setInviteLoading(false)
     }
@@ -221,7 +232,15 @@ export function MembersPanel() {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <Dialog open={inviteOpen} onOpenChange={(open) => {
+            setInviteOpen(open)
+            if (!open) {
+              setInviteEmail('')
+              setInviteRole('member')
+              setInviteError(null)
+              setCopiedCode(false)
+            }
+          }}>
             <DialogTrigger asChild>
               {isOwnerOrAdmin && (
                 <Button variant="ghost" size="icon" className="size-7 hover:bg-primary/10">
@@ -252,7 +271,10 @@ export function MembersPanel() {
                     <Input
                       placeholder="colleague@example.com"
                       value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
+                      onChange={(e) => {
+                        setInviteEmail(e.target.value)
+                        setInviteError(null)
+                      }}
                       type="email"
                     />
                   </div>
@@ -270,6 +292,18 @@ export function MembersPanel() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Error message */}
+                  {inviteError && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-sm text-destructive text-center"
+                    >
+                      {inviteError}
+                    </motion.p>
+                  )}
+
                   <Button
                     onClick={handleInvite}
                     disabled={!inviteEmail || inviteLoading}
@@ -287,7 +321,14 @@ export function MembersPanel() {
                     </Label>
                     <div className="flex items-center gap-2 mt-2">
                       <div className="flex-1 bg-background border rounded-md px-3 py-2.5 font-mono text-sm tracking-wider select-all">
-                        {currentWorkspace?.inviteCode || 'No code available'}
+                        {generatingCode ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            Generating...
+                          </div>
+                        ) : (
+                          currentWorkspace?.inviteCode || 'No code available'
+                        )}
                       </div>
                       <Button
                         variant="outline"
@@ -300,6 +341,7 @@ export function MembersPanel() {
                             setTimeout(() => setCopiedCode(false), 2000);
                           }
                         }}
+                        disabled={!currentWorkspace?.inviteCode || generatingCode}
                         title="Copy invite code"
                       >
                         {copiedCode ? (
@@ -321,7 +363,12 @@ export function MembersPanel() {
                     disabled={generatingCode || !currentWorkspaceId}
                   >
                     <RefreshCw className={cn('size-4', generatingCode && 'animate-spin')} />
-                    {generatingCode ? 'Generating...' : 'Regenerate Code'}
+                    {generatingCode
+                      ? 'Generating...'
+                      : currentWorkspace?.inviteCode
+                        ? 'Regenerate Code'
+                        : 'Generate Code'
+                    }
                   </Button>
                 </TabsContent>
               </Tabs>

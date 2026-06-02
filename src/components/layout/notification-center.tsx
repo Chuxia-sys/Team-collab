@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -272,6 +273,7 @@ export function NotificationCenter() {
   } = useNotificationStore();
 
   const { navigate } = useUIStore();
+  const { loadWorkspaces: loadWorkspaceList } = useWorkspaceStore();
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -315,10 +317,11 @@ export function NotificationCenter() {
   const handleAccept = useCallback(async (invitationId: string, notificationId: string) => {
     const success = await acceptInvitation(invitationId, notificationId);
     if (success) {
-      // Refresh notifications to reflect changes
+      // Refresh notifications and workspace list so the new workspace appears
       loadNotifications();
+      loadWorkspaceList();
     }
-  }, [acceptInvitation, loadNotifications]);
+  }, [acceptInvitation, loadNotifications, loadWorkspaceList]);
 
   // Handle decline invitation
   const handleDecline = useCallback(async (invitationId: string, notificationId: string) => {
