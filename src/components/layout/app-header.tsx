@@ -92,7 +92,7 @@ export function AppHeader() {
   const currentStatusOption = statusOptions.find((s) => s.value === user?.status) || statusOptions[0]
 
   return (
-    <header className="flex h-14 items-center gap-2 border-b bg-background px-3 md:px-4">
+    <header className="sticky top-0 z-50 flex h-14 items-center gap-2 border-b bg-background/80 backdrop-blur-md px-3 md:px-4">
       {/* Mobile menu toggle */}
       <Button
         variant="ghost"

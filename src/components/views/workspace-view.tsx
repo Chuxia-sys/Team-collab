@@ -65,12 +65,12 @@ export function WorkspaceView() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-svh w-full">
+      <div className="flex h-svh w-full">
         <AppSidebar />
-        <div className="flex flex-1 flex-col min-w-0">
+        <div className="flex flex-1 flex-col min-w-0 overflow-y-auto">
           <AppHeader />
-          <div className="flex flex-1 overflow-hidden">
-            <main className="flex-1 overflow-hidden" key={currentSubView}>
+          <div className="flex flex-1 min-h-0">
+            <main className="flex-1 min-h-0" key={currentSubView}>
               {renderSubView()}
             </main>
             {membersPanelOpen && <MembersPanel />}
