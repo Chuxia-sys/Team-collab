@@ -41,6 +41,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var e=localStorage.getItem("theme")||"system",d="dark",h=document.documentElement;if(e===d||(e==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches))h.classList.add(d);else h.classList.remove(d)}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >

@@ -43,11 +43,11 @@ import { X, Search, UserPlus, Shield, Crown, Circle, Wifi, WifiOff, Link2, Copy,
 import { cn } from '@/lib/utils'
 
 const ROLE_BADGE_COLORS: Record<string, string> = {
-  owner: 'bg-amber-100 text-amber-700 border-amber-200',
-  admin: 'bg-red-100 text-red-700 border-red-200',
-  moderator: 'bg-sky-100 text-sky-700 border-sky-200',
-  member: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  guest: 'bg-gray-100 text-gray-600 border-gray-200',
+  owner: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800',
+  admin: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800',
+  moderator: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-400 dark:border-sky-800',
+  member: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800',
+  guest: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700',
 }
 
 export function MembersPanel() {

@@ -33,11 +33,11 @@ const NOTIFICATION_ICONS: Record<string, React.ReactNode> = {
 };
 
 const NOTIFICATION_BG: Record<string, string> = {
-  mention: 'bg-blue-100',
-  message: 'bg-emerald-100',
-  invite: 'bg-purple-100',
-  task_assigned: 'bg-amber-100',
-  info: 'bg-gray-100',
+  mention: 'bg-blue-100 dark:bg-blue-950/30',
+  message: 'bg-emerald-100 dark:bg-emerald-950/30',
+  invite: 'bg-purple-100 dark:bg-purple-950/30',
+  task_assigned: 'bg-amber-100 dark:bg-amber-950/30',
+  info: 'bg-gray-100 dark:bg-gray-800',
 };
 
 const NOTIFICATION_BORDER: Record<string, string> = {

@@ -36,7 +36,7 @@ type ViewMode = 'grid' | 'list';
 // Slide thumbnail component
 function SlideThumbnail({ title, index }: { title: string; index: number }) {
   return (
-    <div className="rounded border bg-white aspect-[16/10] flex flex-col items-center justify-center p-1 shadow-sm">
+    <div className="rounded border bg-white dark:bg-card aspect-[16/10] flex flex-col items-center justify-center p-1 shadow-sm">
       <div className="w-full h-1 bg-amber-400/30 rounded mb-1" />
       <span className="text-[6px] text-gray-500 font-medium text-center line-clamp-2 leading-tight">
         {title}

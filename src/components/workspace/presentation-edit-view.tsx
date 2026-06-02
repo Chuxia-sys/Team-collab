@@ -453,7 +453,7 @@ export function PresentationEditView() {
                     {activeSlide.content || 'Click to add content...'}
                   </div>
                 </div>
-                <div className="bg-gray-50 border-t px-4 py-2 flex items-center justify-between">
+                <div className="bg-gray-50 dark:bg-muted/50 border-t px-4 py-2 flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
                     Slide {activeSlideIdx + 1} of {slides.length}
                   </span>

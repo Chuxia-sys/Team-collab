@@ -65,11 +65,11 @@ import { toast } from '@/hooks/use-toast';
 import { useNotificationSound } from '@/hooks/use-notification-sound';
 
 const ROLE_CONFIG: Record<string, { label: string; color: string }> = {
-  owner: { label: 'Owner', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-  admin: { label: 'Admin', color: 'bg-red-100 text-red-800 border-red-300' },
-  moderator: { label: 'Moderator', color: 'bg-teal-100 text-teal-800 border-teal-300' },
-  member: { label: 'Member', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-  guest: { label: 'Guest', color: 'bg-gray-100 text-gray-800 border-gray-300' },
+  owner: { label: 'Owner', color: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800' },
+  admin: { label: 'Admin', color: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800' },
+  moderator: { label: 'Moderator', color: 'bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-950/30 dark:text-teal-400 dark:border-teal-800' },
+  member: { label: 'Member', color: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800' },
+  guest: { label: 'Guest', color: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' },
 };
 
 const sectionVariants = {
@@ -101,6 +101,40 @@ export function SettingsView() {
   const [isSaving, setIsSaving] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
+  const [themeLoaded, setThemeLoaded] = useState(false);
+
+  // Initialize theme from localStorage at render time (avoids effect setState warnings)
+  if (!themeLoaded) {
+    const saved = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
+    if (saved && saved !== theme) {
+      setTheme(saved);
+    }
+    setThemeLoaded(true);
+  }
+
+  // Apply theme changes: persist to localStorage, toggle .dark class, and listen for system changes
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    const root = document.documentElement;
+
+    const applyTheme = (preferDark: boolean) => {
+      if (theme === 'dark' || (theme === 'system' && preferDark)) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    };
+
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      applyTheme(mq.matches);
+      const handler = (e: MediaQueryListEvent) => applyTheme(e.matches);
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    } else {
+      applyTheme(theme === 'dark');
+    }
+  }, [theme]);
   const [notifications, setNotifications] = useState({
     messages: true,
     mentions: true,

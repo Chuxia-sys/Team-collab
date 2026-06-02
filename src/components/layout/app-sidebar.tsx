@@ -137,7 +137,7 @@ export function AppSidebar() {
         )}
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Dashboard */}
         <SidebarGroup>
           <SidebarGroupContent>

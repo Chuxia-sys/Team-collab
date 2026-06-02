@@ -60,27 +60,27 @@ const ROLE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color:
   owner: {
     label: 'Owner',
     icon: <Crown className="h-3.5 w-3.5" />,
-    color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    color: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/30 dark:text-yellow-400 dark:border-yellow-800',
   },
   admin: {
     label: 'Admin',
     icon: <ShieldAlert className="h-3.5 w-3.5" />,
-    color: 'bg-red-100 text-red-800 border-red-300',
+    color: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800',
   },
   moderator: {
     label: 'Moderator',
     icon: <ShieldCheck className="h-3.5 w-3.5" />,
-    color: 'bg-blue-100 text-blue-800 border-blue-300',
+    color: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800',
   },
   member: {
     label: 'Member',
     icon: <Shield className="h-3.5 w-3.5" />,
-    color: 'bg-green-100 text-green-800 border-green-300',
+    color: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800',
   },
   guest: {
     label: 'Guest',
     icon: <UserCog className="h-3.5 w-3.5" />,
-    color: 'bg-gray-100 text-gray-800 border-gray-300',
+    color: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700',
   },
 };
 

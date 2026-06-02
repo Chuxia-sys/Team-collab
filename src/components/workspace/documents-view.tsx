@@ -35,10 +35,10 @@ import { format } from 'date-fns';
 
 // Document type icon mapping
 const DOC_TYPE_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
-  md: { icon: FileCode, color: 'text-purple-600', bg: 'bg-purple-100', label: 'Markdown' },
-  doc: { icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100', label: 'Document' },
-  txt: { icon: File, color: 'text-gray-600', bg: 'bg-gray-100', label: 'Text' },
-  pdf: { icon: FileType2, color: 'text-red-600', bg: 'bg-red-100', label: 'PDF' },
+  md: { icon: FileCode, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-950/30', label: 'Markdown' },
+  doc: { icon: FileText, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-950/30', label: 'Document' },
+  txt: { icon: File, color: 'text-gray-600 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800', label: 'Text' },
+  pdf: { icon: FileType2, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-950/30', label: 'PDF' },
   default: { icon: FileText, color: 'text-primary', bg: 'bg-primary/10', label: 'Document' },
 };
 
