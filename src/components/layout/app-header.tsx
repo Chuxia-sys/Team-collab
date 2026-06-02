@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
@@ -31,6 +32,8 @@ import {
   Search,
   Keyboard,
   Shield,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NotificationCenter } from './notification-center'
@@ -48,6 +51,32 @@ export function AppHeader() {
   const { workspaces, currentWorkspace, switchWorkspace } = useWorkspaceStore()
   const { unreadCount } = useNotificationStore()
   const { openMobile, setOpenMobile } = useSidebar()
+
+  const [isDark, setIsDark] = useState(false)
+  const [themeLoaded, setThemeLoaded] = useState(false)
+
+  // Initialize from localStorage at render time (avoids effect setState warnings)
+  if (!themeLoaded) {
+    const saved = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null
+    const isCurrentlyDark = saved === 'dark' || (saved !== 'light' && document.documentElement.classList.contains('dark'))
+    if (isCurrentlyDark !== isDark) {
+      setIsDark(isCurrentlyDark)
+    }
+    setThemeLoaded(true)
+  }
+
+  const toggleTheme = () => {
+    const root = document.documentElement
+    const nextDark = !isDark
+    setIsDark(nextDark)
+    if (nextDark) {
+      root.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      root.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -179,6 +208,17 @@ export function AppHeader() {
 
       {/* Notifications */}
       <NotificationCenter />
+
+      {/* Dark mode toggle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-9"
+        onClick={toggleTheme}
+        title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      </Button>
 
       {/* Members panel toggle */}
       {currentWorkspaceId && (
