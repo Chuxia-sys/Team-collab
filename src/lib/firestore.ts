@@ -1118,13 +1118,26 @@ export async function getMessages(workspaceId: string, channelId: string, opts: 
 }
 
 export async function createMessage(workspaceId: string, channelId: string, data: Record<string, unknown>): Promise<any> {
-  const db = getDb();
-  const messagesRef = getMessagesRef(workspaceId, channelId);
-  const id = generateId();
-  const docRef = doc(db, `workspaces/${workspaceId}/channels/${channelId}/messages`, id);
-  const messageData = { ...data, id, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
-  await setDoc(docRef, messageData);
-  return messageData;
+  try {
+    const db = getDb();
+    const messagesRef = getMessagesRef(workspaceId, channelId);
+    const id = generateId();
+    const docRef = doc(db, `workspaces/${workspaceId}/channels/${channelId}/messages`, id);
+    const messageData = { ...data, id, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
+    
+    console.log('Saving message to Firestore:', {
+      path: `workspaces/${workspaceId}/channels/${channelId}/messages/${id}`,
+      data: JSON.stringify(messageData, (k, v) => v instanceof Timestamp ? `[Timestamp]` : v),
+    });
+    
+    await setDoc(docRef, messageData);
+    
+    console.log('Message saved successfully to Firestore');
+    return messageData;
+  } catch (error) {
+    console.error('Error saving message to Firestore:', error);
+    throw error;
+  }
 }
 
 export async function updateMessage(workspaceId: string, channelId: string, messageId: string, data: Record<string, unknown>): Promise<void> {
@@ -1337,13 +1350,35 @@ export const firestoreDb = {
       return results.length;
     },
 
-    create: async (params: { data: Record<string, unknown> }) => {
+    create: async (params: { data: Record<string, unknown>; include?: any }) => {
       const result = await createMessage(
         params.data.workspaceId as string,
         params.data.channelId as string,
         params.data
       );
-      return serializeTimestamps(result);
+      
+      let finalResult = serializeTimestamps(result);
+      
+      // Apply include for author
+      if (params.include?.author && result.userId) {
+        const db = getDb();
+        const userDoc = await getDoc(doc(db, `users/${result.userId}`));
+        if (userDoc.exists()) {
+          const userData = serializeTimestamps({ id: userDoc.id, ...userDoc.data() });
+          if (params.include.author.select) {
+            const sel = params.include.author.select as Record<string, unknown>;
+            const filteredUser: Record<string, unknown> = { id: userDoc.id };
+            for (const [k, v] of Object.entries(sel)) {
+              if (v && k in userData) filteredUser[k] = userData[k];
+            }
+            finalResult.author = filteredUser;
+          } else {
+            finalResult.author = userData;
+          }
+        }
+      }
+      
+      return finalResult;
     },
     update: async (params: any = {}) => {
       const { where, data, include } = params;

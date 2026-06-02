@@ -38,7 +38,7 @@ export function useSocket() {
     if (!user) return
 
     const socket = io('http://localhost:3003', {
-      path: '/',
+      path: '/socket.io/',
       transports: ['websocket', 'polling'],
       forceNew: true,
       reconnection: true,
@@ -139,13 +139,12 @@ export function useSocket() {
       createdAt: string
       updatedAt: string
     }) => {
-      // Don't add own messages (already added by sendMessage in store)
-      if (data.userId === userIdRef.current) return
-
       useMessageStore.setState((state) => {
+        // Check if message already exists (avoid duplicates from sendMessage)
         const exists = state.messages.find((m) => m.id === data.id)
         if (exists) return state
 
+        // Add message from any user (including current user if not already in store)
         const newMessages = [...state.messages, data]
         if (data.parentId) {
           return {

@@ -58,6 +58,15 @@ export async function GET(
       }),
     ]);
 
+    console.log('GET messages result:', {
+      workspaceId,
+      channelId,
+      messageCount: messages.length,
+      total,
+      page,
+      limit,
+    });
+
     return NextResponse.json({
       messages: messages.reverse(),
       pagination: {
@@ -119,6 +128,14 @@ export async function POST(
       });
     }
 
+    console.log('Creating message with data:', {
+      content: content.trim(),
+      channelId,
+      workspaceId,
+      userId: user.id,
+      parentId: parentId || null,
+    });
+
     const message = await db.message.create({
       data: {
         content: content.trim(),
@@ -126,6 +143,7 @@ export async function POST(
         workspaceId,
         userId: user.id,
         parentId: parentId || null,
+        isDeleted: false,  // CRITICAL: Must set this or GET query will filter it out
       },
       include: {
         author: {
@@ -134,9 +152,17 @@ export async function POST(
       },
     });
 
+    console.log('Message created successfully:', { id: message?.id, content: message?.content });
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {
     console.error('Send message error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return NextResponse.json(
+      { error: 'Failed to create message', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
   }
 }
