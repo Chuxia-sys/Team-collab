@@ -76,14 +76,14 @@ export function DocumentEditView() {
     }
   }, [currentWorkspaceId, currentDocumentId, getDocument]);
 
-  useEffect(() => {
-    if (currentDocument) {
-      setTitle(currentDocument.title);
-      setContent(currentDocument.content);
-      setLastSaved(new Date(currentDocument.updatedAt));
-      setHasChanges(false);
-    }
-  }, [currentDocument]);
+  const [initializedDocId, setInitializedDocId] = useState<string | null>(null);
+  if (currentDocument && currentDocument.id !== initializedDocId) {
+    setInitializedDocId(currentDocument.id);
+    setTitle(currentDocument.title);
+    setContent(currentDocument.content);
+    setLastSaved(new Date(currentDocument.updatedAt));
+    if (currentDocument.title && currentDocument.content) setHasChanges(false);
+  }
 
   const saveDocument = useCallback(async () => {
     if (!currentWorkspaceId || !currentDocumentId || !hasChanges) return;

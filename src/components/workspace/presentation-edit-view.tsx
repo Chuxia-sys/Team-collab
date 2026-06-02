@@ -65,21 +65,21 @@ export function PresentationEditView() {
     }
   }, [currentWorkspaceId, currentPresentationId, getPresentation]);
 
-  useEffect(() => {
-    if (currentPresentation) {
-      setTitle(currentPresentation.title);
-      try {
-        const parsed = typeof currentPresentation.slides === 'string'
-          ? JSON.parse(currentPresentation.slides)
-          : currentPresentation.slides;
-        setSlides(Array.isArray(parsed) && parsed.length > 0 ? parsed : [{ title: 'Slide 1', content: '' }]);
-      } catch {
-        setSlides([{ title: 'Slide 1', content: '' }]);
-      }
-      setLastSaved(new Date(currentPresentation.updatedAt));
-      setHasChanges(false);
+  const [initializedPresId, setInitializedPresId] = useState<string | null>(null);
+  if (currentPresentation && currentPresentation.id !== initializedPresId) {
+    setInitializedPresId(currentPresentation.id);
+    setTitle(currentPresentation.title);
+    try {
+      const parsed = typeof currentPresentation.slides === 'string'
+        ? JSON.parse(currentPresentation.slides)
+        : currentPresentation.slides;
+      setSlides(Array.isArray(parsed) && parsed.length > 0 ? parsed : [{ title: 'Slide 1', content: '' }]);
+    } catch {
+      setSlides([{ title: 'Slide 1', content: '' }]);
     }
-  }, [currentPresentation]);
+    setLastSaved(new Date(currentPresentation.updatedAt));
+    setHasChanges(false);
+  }
 
   const savePresentation = useCallback(async () => {
     if (!currentWorkspaceId || !currentPresentationId || !hasChanges) return;

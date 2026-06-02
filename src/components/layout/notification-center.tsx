@@ -227,7 +227,7 @@ function EmptyState() {
         <Inbox className="size-7 text-muted-foreground/60" />
       </div>
       <h4 className="text-sm font-medium text-foreground">All caught up!</h4>
-      <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
+      <p className="text-xs text-muted-foreground mt-1 max-w-50">
         You don&apos;t have any notifications right now.
       </p>
     </div>
@@ -351,7 +351,7 @@ export function NotificationCenter() {
               variant="destructive"
               className={cn(
                 'absolute -top-0.5 -right-0.5 size-4 min-w-4 p-0 text-[10px] flex items-center justify-center',
-                unreadCount > 9 && 'min-w-[18px] px-0.5'
+                unreadCount > 9 && 'min-w-4.5 px-0.5'
               )}
             >
               {unreadCount > 99 ? '99+' : unreadCount}
@@ -367,7 +367,7 @@ export function NotificationCenter() {
         ref={popoverRef}
         align="end"
         sideOffset={8}
-        className="w-[380px] sm:w-[420px] p-0 shadow-xl border-border/50 overflow-hidden"
+        className="w-95 sm:w-105 p-0 shadow-xl border-border/50 overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-background">
@@ -452,7 +452,7 @@ export function NotificationCenter() {
         </div>
 
         {/* Notification List */}
-        <ScrollArea className="max-h-[420px] overflow-y-auto">
+        <ScrollArea className="max-h-105 overflow-y-auto">
           {isLoading ? (
             <NotificationSkeleton />
           ) : error ? (

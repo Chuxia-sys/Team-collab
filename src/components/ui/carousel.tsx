@@ -88,14 +88,19 @@ function Carousel({
     [scrollPrev, scrollNext]
   )
 
+  const hasSelected = React.useRef(false)
+
   React.useEffect(() => {
     if (!api || !setApi) return
-    setApi(api)
+    setApi(prev => prev === api ? prev : api)
   }, [api, setApi])
 
   React.useEffect(() => {
     if (!api) return
-    onSelect(api)
+    if (!hasSelected.current) {
+      hasSelected.current = true
+      onSelect(api)
+    }
     api.on("reInit", onSelect)
     api.on("select", onSelect)
 

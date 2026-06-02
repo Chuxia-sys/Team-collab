@@ -54,26 +54,26 @@ export function SpreadsheetEditView() {
     }
   }, [currentWorkspaceId, currentSpreadsheetId, getSpreadsheet]);
 
-  useEffect(() => {
-    if (currentSpreadsheet) {
-      setTitle(currentSpreadsheet.title);
-      try {
-        const parsedCols = typeof currentSpreadsheet.columns === 'string'
-          ? JSON.parse(currentSpreadsheet.columns)
-          : currentSpreadsheet.columns;
-        const parsedRows = typeof currentSpreadsheet.rows === 'string'
-          ? JSON.parse(currentSpreadsheet.rows)
-          : currentSpreadsheet.rows;
-        setColumns(Array.isArray(parsedCols) ? parsedCols : ['A', 'B', 'C', 'D']);
-        setRows(Array.isArray(parsedRows) ? parsedRows : [['', '', '', '']]);
-      } catch {
-        setColumns(['A', 'B', 'C', 'D']);
-        setRows([['', '', '', '']]);
-      }
-      setLastSaved(new Date(currentSpreadsheet.updatedAt));
-      setHasChanges(false);
+  const [initializedSsId, setInitializedSsId] = useState<string | null>(null);
+  if (currentSpreadsheet && currentSpreadsheet.id !== initializedSsId) {
+    setInitializedSsId(currentSpreadsheet.id);
+    setTitle(currentSpreadsheet.title);
+    try {
+      const parsedCols = typeof currentSpreadsheet.columns === 'string'
+        ? JSON.parse(currentSpreadsheet.columns)
+        : currentSpreadsheet.columns;
+      const parsedRows = typeof currentSpreadsheet.rows === 'string'
+        ? JSON.parse(currentSpreadsheet.rows)
+        : currentSpreadsheet.rows;
+      setColumns(Array.isArray(parsedCols) ? parsedCols : ['A', 'B', 'C', 'D']);
+      setRows(Array.isArray(parsedRows) ? parsedRows : [['', '', '', '']]);
+    } catch {
+      setColumns(['A', 'B', 'C', 'D']);
+      setRows([['', '', '', '']]);
     }
-  }, [currentSpreadsheet]);
+    setLastSaved(new Date(currentSpreadsheet.updatedAt));
+    setHasChanges(false);
+  }
 
   const saveSpreadsheet = useCallback(async () => {
     if (!currentWorkspaceId || !currentSpreadsheetId || !hasChanges) return;

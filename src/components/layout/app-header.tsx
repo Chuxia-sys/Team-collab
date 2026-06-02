@@ -114,7 +114,7 @@ export function AppHeader() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2 px-2 h-9 hover:bg-accent">
-              <span className="font-semibold text-sm truncate max-w-[120px] sm:max-w-[200px]">
+              <span className="font-semibold text-sm truncate max-w-30 sm:max-w-50">
                 {currentWorkspace?.name || 'Workspace'}
               </span>
               <ChevronsUpDown className="size-4 text-muted-foreground shrink-0" />

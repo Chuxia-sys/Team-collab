@@ -555,7 +555,7 @@ export function DashboardView() {
           >
             <Card className="overflow-hidden border-primary/20">
               <CardContent className="p-0">
-                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-primary/5 via-blue-50/30 to-emerald-50/30 dark:from-primary/10 dark:via-blue-950/10 dark:to-emerald-950/10">
+                <div className="flex items-center gap-4 p-4 bg-linear-to-r from-primary/5 via-blue-50/30 to-emerald-50/30 dark:from-primary/10 dark:via-blue-950/10 dark:to-emerald-950/10">
                   <Avatar className="size-14 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
                     <AvatarImage src={user.photoURL} alt={user.name || ''} />
                   </Avatar>
@@ -756,7 +756,7 @@ export function DashboardView() {
                         onClick={() => handleOpenWorkspace(ws.id)}
                       >
                         {/* Gradient header */}
-                        <div className={`h-20 bg-gradient-to-br ${gradient} relative`}>
+                        <div className={`h-20 bg-linear-to-br ${gradient} relative`}>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-3xl font-bold text-white/30">{getInitials(ws.name)}</span>
                           </div>
@@ -900,7 +900,7 @@ export function DashboardView() {
                         onClick={() => handleOpenWorkspace(ws.id)}
                       >
                         <CardContent className="p-4 flex items-center gap-3">
-                          <div className={`flex size-10 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white text-sm font-bold shrink-0`}>
+                          <div className={`flex size-10 items-center justify-center rounded-xl bg-linear-to-br ${gradient} text-white text-sm font-bold shrink-0`}>
                             {getInitials(ws.name)}
                           </div>
                           <div className="min-w-0 flex-1">

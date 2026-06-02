@@ -93,7 +93,7 @@ export function AccountSettingsDialog({ open, onOpenChange }: AccountSettingsDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-120 max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="size-5 text-primary" />
@@ -126,7 +126,7 @@ export function AccountSettingsDialog({ open, onOpenChange }: AccountSettingsDia
             <Label className="text-sm font-medium text-muted-foreground">Authentication Method</Label>
 
             {user?.authProvider === 'google' ? (
-              <Card className="border-primary/20 bg-gradient-to-br from-blue-50/50 via-white to-emerald-50/50 dark:from-blue-950/20 dark:via-background dark:to-emerald-950/20">
+              <Card className="border-primary/20 bg-linear-to-br from-blue-50/50 via-white to-emerald-50/50 dark:from-blue-950/20 dark:via-background dark:to-emerald-950/20">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="flex size-10 items-center justify-center rounded-lg bg-white shadow-sm border border-border/50">
@@ -145,7 +145,7 @@ export function AccountSettingsDialog({ open, onOpenChange }: AccountSettingsDia
                     </div>
                   </div>
                   {user.photoURL && (
-                    <p className="text-xs text-muted-foreground mt-3 pl-[52px]">
+                    <p className="text-xs text-muted-foreground mt-3 pl-13">
                       Profile photo synced from Google
                     </p>
                   )}

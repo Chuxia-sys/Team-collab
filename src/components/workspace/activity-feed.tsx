@@ -62,23 +62,25 @@ export function ActivityFeed({ workspaceId }: ActivityFeedProps) {
   const [showAll, setShowAll] = useState(false)
 
   useEffect(() => {
-    loadActivities()
-  }, [workspaceId])
+    let cancelled = false
 
-  const loadActivities = async () => {
-    setIsLoading(true)
-    try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/activity`)
-      if (res.ok) {
-        const data = await res.json()
-        setActivities(data.activities || [])
+    const fetchActivities = async () => {
+      try {
+        const res = await fetch(`/api/workspaces/${workspaceId}/activity`)
+        if (!cancelled && res.ok) {
+          const data = await res.json()
+          setActivities(data.activities || [])
+        }
+      } catch (error) {
+        if (!cancelled) console.error('Failed to load activities:', error)
+      } finally {
+        if (!cancelled) setIsLoading(false)
       }
-    } catch (error) {
-      console.error('Failed to load activities:', error)
-    } finally {
-      setIsLoading(false)
     }
-  }
+
+    fetchActivities()
+    return () => { cancelled = true }
+  }, [workspaceId])
 
   const displayedActivities = showAll ? activities : activities.slice(0, 6)
 

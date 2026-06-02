@@ -115,12 +115,12 @@ export function SettingsView() {
     }
   }, [currentWorkspaceId, loadMembers]);
 
-  useEffect(() => {
-    if (currentWorkspace) {
-      setName(currentWorkspace.name);
-      setDescription(currentWorkspace.description);
-    }
-  }, [currentWorkspace]);
+  const [initializedWsId, setInitializedWsId] = useState<string | null>(null);
+  if (currentWorkspace && currentWorkspace.id !== initializedWsId) {
+    setInitializedWsId(currentWorkspace.id);
+    setName(currentWorkspace.name);
+    setDescription(currentWorkspace.description);
+  }
 
   const currentUserRole = currentWorkspaceId ? workspaceRoles[user?.id || ''] : null;
   const isOwner = currentUserRole === 'owner';

@@ -769,7 +769,7 @@ export function ChannelView() {
 
                         {/* The chat card/bubble */}
                         <div className={cn(
-                          'relative rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words shadow-sm',
+                          'relative rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap wrap-break-word shadow-sm',
                           isOwn
                             ? 'bg-primary text-primary-foreground rounded-br-md'
                             : 'bg-[#d3d3d3] text-foreground rounded-bl-md',
@@ -1080,7 +1080,7 @@ export function ChannelView() {
             transition={{ duration: 0.2 }}
             className="border-l h-full overflow-hidden shrink-0"
           >
-            <div className="w-[300px] h-full flex flex-col">
+            <div className="w-75 h-full flex flex-col">
               {/* Panel header */}
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <span className="font-semibold text-sm">Channel Info</span>

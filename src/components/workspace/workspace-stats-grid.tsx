@@ -94,23 +94,25 @@ export function WorkspaceStatsGrid({ workspaceId }: WorkspaceStatsGridProps) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    loadStats()
-  }, [workspaceId])
+    let cancelled = false
 
-  const loadStats = async () => {
-    setIsLoading(true)
-    try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/stats`)
-      if (res.ok) {
-        const data = await res.json()
-        setStats(data.stats)
+    const fetchStats = async () => {
+      try {
+        const res = await fetch(`/api/workspaces/${workspaceId}/stats`)
+        if (!cancelled && res.ok) {
+          const data = await res.json()
+          setStats(data.stats)
+        }
+      } catch (error) {
+        if (!cancelled) console.error('Failed to load stats:', error)
+      } finally {
+        if (!cancelled) setIsLoading(false)
       }
-    } catch (error) {
-      console.error('Failed to load stats:', error)
-    } finally {
-      setIsLoading(false)
     }
-  }
+
+    fetchStats()
+    return () => { cancelled = true }
+  }, [workspaceId])
 
   const fadeUp = {
     initial: { opacity: 0, y: 20 },

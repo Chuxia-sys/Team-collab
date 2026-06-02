@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -73,13 +73,9 @@ export function CommandPalette() {
   const { user } = useAuthStore()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResults>({})
-  const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches())
   const [isSearching, setIsSearching] = useState(false)
-
-  // Load recent searches on mount
-  useEffect(() => {
-    setRecentSearches(getRecentSearches())
-  }, [])
+  const wasValidSearch = useRef(false)
 
   // Cmd+K / Ctrl+K shortcut
   useEffect(() => {
@@ -95,29 +91,35 @@ export function CommandPalette() {
 
   // Search when query changes
   useEffect(() => {
-    if (!query.trim() || query.trim().length < 2) {
-      setResults({})
-      return
+    const trimmed = query.trim()
+    const isValid = trimmed.length >= 2
+
+    if (isValid) {
+      wasValidSearch.current = true
+      const timer = setTimeout(async () => {
+        setIsSearching(true)
+        try {
+          const params = new URLSearchParams({ q: query })
+          if (currentWorkspaceId) params.set('workspaceId', currentWorkspaceId)
+          const res = await fetch(`/api/search?${params}`)
+          if (res.ok) {
+            const data = await res.json()
+            setResults(data.results || {})
+          }
+        } catch {
+          // ignore
+        } finally {
+          setIsSearching(false)
+        }
+      }, 300)
+      return () => clearTimeout(timer)
     }
 
-    const timer = setTimeout(async () => {
-      setIsSearching(true)
-      try {
-        const params = new URLSearchParams({ q: query })
-        if (currentWorkspaceId) params.set('workspaceId', currentWorkspaceId)
-        const res = await fetch(`/api/search?${params}`)
-        if (res.ok) {
-          const data = await res.json()
-          setResults(data.results || {})
-        }
-      } catch {
-        // ignore
-      } finally {
-        setIsSearching(false)
-      }
-    }, 300)
-
-    return () => clearTimeout(timer)
+    // Clear results only once when transitioning from a valid search to an invalid query
+    if (wasValidSearch.current) {
+      wasValidSearch.current = false
+      setResults(prev => Object.keys(prev).length > 0 ? {} : prev)
+    }
   }, [query, currentWorkspaceId])
 
   const handleSelect = useCallback(

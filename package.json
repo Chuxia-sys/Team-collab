@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
-    "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
+    "build": "next build && node -e \"require('fs').cpSync('.next/static', '.next/standalone/.next/static', {recursive: true, force: true}); require('fs').cpSync('public', '.next/standalone/public', {recursive: true, force: true})\"",
+    "start": "bun .next/standalone/server.js",
     "lint": "eslint .",
     "db:info": "echo 'Database is now Firebase Firestore'"
   },
