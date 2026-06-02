@@ -29,7 +29,7 @@ export async function PUT(
     const { name, description, type, isPrivate, topic, archived } = body;
 
     const updatedChannel = await db.channel.update({
-      where: { id: channelId },
+      where: { id: channelId, workspaceId },
       data: {
         ...(name !== undefined && { name: name.trim().toLowerCase() }),
         ...(description !== undefined && { description: description.trim() }),
@@ -71,7 +71,7 @@ export async function DELETE(
     }
 
     const archivedChannel = await db.channel.update({
-      where: { id: channelId },
+      where: { id: channelId, workspaceId },
       data: { archived: true },
     });
 

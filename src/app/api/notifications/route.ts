@@ -24,16 +24,35 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
+        include: {
+          user: {
+            select: { id: true, name: true, avatar: true, photoURL: true },
+          },
+        },
       }),
       db.notification.count({ where }),
     ]);
+
+    // Enrich notifications with actor info where possible
+    const enrichedNotifications = await Promise.all(
+      notifications.map(async (n) => {
+        let actor = null;
+        if (n.actorId) {
+          actor = await db.user.findUnique({
+            where: { id: n.actorId },
+            select: { id: true, name: true, avatar: true, photoURL: true },
+          });
+        }
+        return { ...n, actor };
+      })
+    );
 
     const unreadCount = await db.notification.count({
       where: { userId: user.id, read: false },
     });
 
     return NextResponse.json({
-      notifications,
+      notifications: enrichedNotifications,
       unreadCount,
       pagination: {
         page,

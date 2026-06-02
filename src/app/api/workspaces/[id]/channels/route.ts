@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthUser, requireWorkspaceMember } from '@/lib/auth';
+import { getMessages } from '@/lib/firestore';
 
 export async function GET(
   request: NextRequest,
@@ -21,14 +22,22 @@ export async function GET(
     const channels = await db.channel.findMany({
       where: { workspaceId, archived: false },
       orderBy: { createdAt: 'asc' },
-      include: {
-        _count: {
-          select: { messages: { where: { isDeleted: false } } },
-        },
-      },
     });
 
-    return NextResponse.json({ channels }, { status: 200 });
+    // Attach message counts manually since Firestore doesn't support nested _count where
+    const channelsWithCounts = await Promise.all(
+      (channels as any[]).map(async (ch) => {
+        try {
+          const msgs = await getMessages(workspaceId, ch.id, {});
+          const msgCount = msgs.filter((m: any) => !m.isDeleted).length;
+          return { ...ch, _count: { messages: msgCount } };
+        } catch {
+          return { ...ch, _count: { messages: 0 } };
+        }
+      })
+    );
+
+    return NextResponse.json({ channels: channelsWithCounts }, { status: 200 });
   } catch (error) {
     console.error('List channels error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

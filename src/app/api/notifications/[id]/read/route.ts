@@ -14,19 +14,16 @@ export async function PUT(
 
     const { id } = await params;
 
+    // In Firestore, notifications are stored as users/{userId}/notifications/{notificationId}
     const notification = await db.notification.findUnique({
-      where: { id },
+      where: { id, userId: user.id },
     });
     if (!notification) {
       return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
     }
 
-    if (notification.userId !== user.id) {
-      return NextResponse.json({ error: 'Cannot mark someone else\'s notification' }, { status: 403 });
-    }
-
     const updatedNotification = await db.notification.update({
-      where: { id },
+      where: { id, userId: user.id },
       data: { read: true },
     });
 

@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useNotificationStore } from '@/stores/notificationStore'
+import { NotificationCenter } from '@/components/layout/notification-center'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -279,6 +281,7 @@ export function DashboardView() {
   const { user, logout } = useAuthStore()
   const { workspaces, loadWorkspaces, createWorkspace, deleteWorkspace, leaveWorkspace, isLoading } = useWorkspaceStore()
   const { navigate, onboardingSeen, setOnboardingSeen } = useUIStore()
+  const { loadNotifications } = useNotificationStore()
 
   const [createOpen, setCreateOpen] = useState(false)
   const [wsName, setWsName] = useState('')
@@ -299,6 +302,13 @@ export function DashboardView() {
       return () => clearTimeout(timer)
     }
   }, [onboardingSeen, workspaces.length])
+
+  // Load notifications on mount
+  useEffect(() => {
+    if (user) {
+      loadNotifications();
+    }
+  }, [user, loadNotifications]);
 
   const handleCreate = async () => {
     if (!wsName.trim()) return
@@ -423,26 +433,27 @@ export function DashboardView() {
               </div>
               <span className="text-lg font-bold">TeamCollab</span>
             </div>
-            <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2">
-              {user?.authProvider === 'google' && user?.photoURL ? (
-                <Avatar className="size-8 ring-2 ring-primary/30">
-                  <AvatarImage src={user.photoURL} alt={user.name || ''} />
-                </Avatar>
-              ) : (
-                <Avatar className="size-8">
-                  <AvatarFallback className={`${user?.avatar || 'bg-primary/10'} ${user?.avatar ? 'text-white' : 'text-primary'} text-xs`}>
-                    {user?.name ? getInitials(user.name) : 'U'}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <span className="text-sm font-medium text-foreground">{user?.name}</span>
-              {user?.authProvider === 'google' && (
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/30 shadow-sm">
-                  Google
-                </Badge>
-              )}
-            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <NotificationCenter />
+              <div className="hidden sm:flex items-center gap-2">
+                {user?.authProvider === 'google' && user?.photoURL ? (
+                  <Avatar className="size-8 ring-2 ring-primary/30">
+                    <AvatarImage src={user.photoURL} alt={user.name || ''} />
+                  </Avatar>
+                ) : (
+                  <Avatar className="size-8">
+                    <AvatarFallback className={`${user?.avatar || 'bg-primary/10'} ${user?.avatar ? 'text-white' : 'text-primary'} text-xs`}>
+                      {user?.name ? getInitials(user.name) : 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <span className="text-sm font-medium text-foreground">{user?.name}</span>
+                {user?.authProvider === 'google' && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/30 shadow-sm">
+                    Google
+                  </Badge>
+                )}
+              </div>
               <Button
                 variant="ghost"
                 size="sm"

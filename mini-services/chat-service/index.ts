@@ -380,6 +380,32 @@ io.on('connection', (socket) => {
     }
   )
 
+  // ---- Notification events ----
+  socket.on(
+    'send-notification',
+    (data: {
+      userId: string
+      notification: {
+        id: string
+        userId: string
+        type: string
+        title: string
+        message: string
+        read: boolean
+        link: string | null
+        actorId: string | null
+        workspaceId: string | null
+        channelId: string | null
+        invitationId: string | null
+        createdAt: string
+      }
+    }) => {
+      // Send real-time notification to the specific user
+      io.to(`user:${data.userId}`).emit('new-notification', data.notification)
+      console.log(`[ChatService] Notification sent to user ${data.userId}: ${data.notification.title}`)
+    }
+  )
+
   // ---- Disconnect ----
   socket.on('disconnect', () => {
     const user = onlineUsers.get(socket.id)

@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 // Firebase configuration - using environment variables for security
 const firebaseConfig = {
@@ -24,11 +25,13 @@ let app;
 let auth;
 let googleProvider;
 let analytics;
+let firestore: Firestore | null = null;
 
 if (isFirebaseConfigured) {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
+    firestore = getFirestore(app);
 
     // Configure Google Auth Provider
     googleProvider = new GoogleAuthProvider();
@@ -49,6 +52,16 @@ if (isFirebaseConfigured) {
   } catch (error) {
     console.error('Firebase initialization error:', error);
   }
+}
+
+// Get Firestore instance (works in both client and server)
+export function getFirestoreApp(): Firestore {
+  if (!firestore) {
+    // Re-initialize if needed (for server-side)
+    const fbApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    firestore = getFirestore(fbApp);
+  }
+  return firestore;
 }
 
 export { app, auth, googleProvider, analytics };

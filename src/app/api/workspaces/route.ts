@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
+import { generateId } from '@/lib/firestore';
 
 export async function GET() {
   try {
@@ -9,16 +10,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const workspaces = await db.workspace.findMany({
-      where: {
-        members: {
-          some: { userId: user.id },
-        },
-      },
+    // Firestore approach: find all workspaces where user is a member
+    // Since members are stored as subcollections, we query all workspaces
+    // and filter by membership. For scalability, consider adding a
+    // userWorkspaces collection in the future.
+    const allWorkspaces = await db.workspace.findMany({
       include: {
-        members: {
-          select: { id: true, userId: true, role: true, joinedAt: true },
-        },
         _count: {
           select: { members: true, channels: true },
         },
@@ -28,6 +25,24 @@ export async function GET() {
       },
       orderBy: { updatedAt: 'desc' },
     });
+
+    // Filter to only workspaces where user is a member
+    const workspaces: any[] = [];
+    for (const ws of allWorkspaces) {
+      const membersRaw = await db.workspaceMember.findMany({
+        where: { workspaceId: ws.id } as any,
+      });
+      const isMember = membersRaw.some((m: any) => m.userId === user.id);
+      if (isMember) {
+        const members = membersRaw.map((m: any) => ({
+          id: m.id,
+          userId: m.userId,
+          role: m.role,
+          joinedAt: m.joinedAt?.toDate?.()?.toISOString() || m.joinedAt,
+        }));
+        workspaces.push({ ...ws, members });
+      }
+    }
 
     return NextResponse.json({ workspaces }, { status: 200 });
   } catch (error) {
@@ -57,25 +72,38 @@ export async function POST(request: NextRequest) {
         description: description?.trim() || '',
         avatar: avatar || null,
         createdBy: user.id,
-        members: {
-          create: {
-            userId: user.id,
-            role: 'owner',
-          },
-        },
-        channels: {
-          create: {
-            name: 'general',
-            description: 'General discussion',
-            type: 'text',
-            createdBy: user.id,
-          },
-        },
+        inviteCode: generateId().substring(0, 12),
       },
+    });
+
+    // Add creator as owner member (using userId as doc ID for faster lookup)
+    await db.workspaceMember.create({
+      data: {
+        id: user.id,
+        workspaceId: (workspace as any).id,
+        userId: user.id,
+        role: 'owner',
+      } as any,
+    });
+
+    // Create default general channel
+    await db.channel.create({
+      data: {
+        workspaceId: (workspace as any).id,
+        name: 'general',
+        description: 'General discussion',
+        type: 'text',
+        isPrivate: false,
+        archived: false,
+        createdBy: user.id,
+      } as any,
+    });
+
+    // Fetch complete workspace with includes
+    // Note: include.members is not handled by applyIncludeRemote, so we query members separately
+    const fullWorkspace = await db.workspace.findUnique({
+      where: { id: (workspace as any).id },
       include: {
-        members: {
-          select: { id: true, userId: true, role: true, joinedAt: true },
-        },
         channels: true,
         creator: {
           select: { id: true, name: true, avatar: true },
@@ -83,7 +111,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ workspace }, { status: 201 });
+    // Manually fetch members
+    const workspaceMembers = await db.workspaceMember.findMany({
+      where: { workspaceId: (workspace as any).id },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, avatar: true, status: true },
+        },
+      },
+    });
+
+    return NextResponse.json(
+      { workspace: { ...fullWorkspace, members: workspaceMembers } },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Create workspace error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

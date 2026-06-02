@@ -102,6 +102,16 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>((set,
 
       set({ currentWorkspace: data.workspace || null, isLoading: false });
 
+      // Populate workspaceRoles from workspace.members if available
+      const ws = data.workspace as any;
+      if (ws?.members) {
+        const roles: Record<string, string> = {};
+        for (const m of ws.members) {
+          roles[m.userId] = m.role;
+        }
+        set({ workspaceRoles: roles });
+      }
+
       // Also load members when switching workspace
       get().loadMembers(id);
     } catch {

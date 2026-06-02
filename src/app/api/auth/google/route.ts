@@ -2,23 +2,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { setSessionCookie } from '@/lib/auth';
 
-// Google token verification endpoint
-const GOOGLE_TOKEN_INFO_URL = 'https://oauth2.googleapis.com/tokeninfo?id_token=';
+// Firebase Identity Toolkit API endpoint for verifying Firebase ID tokens
+// See: https://firebase.google.com/docs/reference/rest/auth#section-verify-custom-token
+const FIREBASE_VERIFY_TOKEN_URL =
+  `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY || ''}`;
 
-interface GoogleTokenInfo {
-  iss: string;
-  azp: string;
-  aud: string;
-  sub: string;
-  email: string;
-  email_verified: boolean;
-  name?: string;
-  picture?: string;
-  given_name?: string;
-  family_name?: string;
-  // These fields may not be present on error
-  error?: string;
-  error_description?: string;
+interface FirebaseAccountLookupResponse {
+  users?: Array<{
+    localId: string;
+    email: string;
+    emailVerified: boolean;
+    displayName?: string;
+    photoUrl?: string;
+    providerUserInfo?: Array<{
+      providerId: string;
+      federatedId?: string;
+      rawId?: string;
+      screenName?: string;
+      displayName?: string;
+      photoUrl?: string;
+      email?: string;
+    }>;
+    validSince?: string;
+    lastLoginAt?: string;
+    createdAt?: string;
+  }>;
+  error?: {
+    code: number;
+    message: string;
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -27,110 +39,138 @@ export async function POST(request: NextRequest) {
     const { idToken, email, name, photoURL } = body;
 
     if (!idToken) {
+      console.error('[Google Auth] Missing ID token in request body');
       return NextResponse.json(
         { error: 'Google ID token is required' },
         { status: 400 }
       );
     }
 
-    // Verify the Google ID token server-side
-    let tokenInfo: GoogleTokenInfo;
-    try {
-      const verifyResponse = await fetch(`${GOOGLE_TOKEN_INFO_URL}${idToken}`);
-      tokenInfo = await verifyResponse.json();
+    if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+      console.error('[Google Auth] Firebase API key is not configured in environment variables');
+      return NextResponse.json(
+        { error: 'Firebase is not configured. Please add Firebase credentials to the server environment.' },
+        { status: 500 }
+      );
+    }
 
-      if (tokenInfo.error) {
-        console.error('Google token verification failed:', tokenInfo.error, tokenInfo.error_description);
+    // --- Step 1: Verify the Firebase ID token using Firebase Identity Toolkit API ---
+    let firebaseUser: FirebaseAccountLookupResponse['users'][number];
+    try {
+      const verifyResponse = await fetch(FIREBASE_VERIFY_TOKEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+
+      const result: FirebaseAccountLookupResponse = await verifyResponse.json();
+
+      if (result.error) {
+        console.error(
+          '[Google Auth] Firebase token verification failed:',
+          `code=${result.error.code}`,
+          `message=${result.error.message}`,
+          `idTokenPreview=${idToken.substring(0, 20)}...`
+        );
         return NextResponse.json(
           { error: 'Invalid Google token. Please try again.' },
           { status: 401 }
         );
       }
+
+      if (!result.users || result.users.length === 0) {
+        console.error('[Google Auth] Firebase token verification returned no users');
+        return NextResponse.json(
+          { error: 'Invalid Google token. Please try again.' },
+          { status: 401 }
+        );
+      }
+
+      firebaseUser = result.users[0];
+      console.log(
+        '[Google Auth] Token verified successfully:',
+        `email=${firebaseUser.email}`,
+        `localId=${firebaseUser.localId}`
+      );
     } catch (verifyError) {
-      console.error('Failed to verify Google token:', verifyError);
+      console.error('[Google Auth] Failed to call Firebase verification API:', verifyError);
       return NextResponse.json(
         { error: 'Failed to verify Google credentials. Please try again.' },
         { status: 401 }
       );
     }
 
-    // Use verified email from token (not from client for security)
-    const verifiedEmail = tokenInfo.email;
-    const verifiedName = tokenInfo.name || name || verifiedEmail.split('@')[0];
-    const verifiedPhotoURL = tokenInfo.picture || photoURL || null;
+    // --- Step 2: Extract verified user info from Firebase response ---
+    // Use the verified data from Firebase, not the client-provided data
+    const verifiedEmail = firebaseUser.email;
+    const verifiedName = firebaseUser.displayName || name || (verifiedEmail ? verifiedEmail.split('@')[0] : 'User');
+    // Firebase returns photoUrl (lowercase 'u'), but our schema uses photoURL (uppercase 'U')
+    const verifiedPhotoURL = firebaseUser.photoUrl || photoURL || null;
 
     if (!verifiedEmail) {
+      console.error('[Google Auth] Firebase account has no email address');
       return NextResponse.json(
         { error: 'Could not retrieve email from Google account' },
         { status: 400 }
       );
     }
 
-    // Check if user already exists
+    // --- Step 3: Create or update user in Firestore ---
     let user = await db.user.findUnique({ where: { email: verifiedEmail } });
 
+    const toResponse = (u: any) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      avatar: u.avatar || null,
+      photoURL: u.photoURL || null,
+      authProvider: u.authProvider,
+      status: u.status,
+      createdAt: u.createdAt?.toDate?.()?.toISOString() || u.createdAt,
+      updatedAt: u.updatedAt?.toDate?.()?.toISOString() || u.updatedAt,
+    });
+
     if (user) {
-      // User exists - update their Google info if needed
+      // Existing user - update their info as needed
       const updateData: Record<string, unknown> = { status: 'online' };
 
-      // Update photo URL if provided by Google and user doesn't have one or is a Google auth user
-      if (verifiedPhotoURL && (!user.photoURL || user.authProvider === 'google')) {
+      const u = user as any;
+      if (verifiedPhotoURL && (!u.photoURL || u.authProvider === 'google')) {
         updateData.photoURL = verifiedPhotoURL;
       }
 
-      // Update name if it was previously default-generated
-      if (user.authProvider === 'google' && verifiedName && user.name !== verifiedName) {
+      if (u.authProvider === 'google' && verifiedName && u.name !== verifiedName) {
         updateData.name = verifiedName;
       }
 
-      // If user was email-auth but now signs in with Google, link the accounts
-      if (user.authProvider === 'email') {
+      if (u.authProvider === 'email') {
         updateData.authProvider = 'google';
         if (verifiedPhotoURL) {
           updateData.photoURL = verifiedPhotoURL;
         }
       }
 
-      user = await db.user.update({
-        where: { id: user.id },
+      const updated = await db.user.update({
+        where: { id: u.id },
         data: updateData,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          avatar: true,
-          photoURL: true,
-          authProvider: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
-        },
       });
+      console.log('[Google Auth] Existing user updated:', verifiedEmail, u.id);
+      user = toResponse(updated);
     } else {
-      // New user - create account with Google info
-      user = await db.user.create({
+      // New user - create account
+      const created = await db.user.create({
         data: {
           email: verifiedEmail,
           name: verifiedName,
           photoURL: verifiedPhotoURL,
           authProvider: 'google',
-          // No passwordHash needed for Google auth users
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          avatar: true,
-          photoURL: true,
-          authProvider: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
         },
       });
+      console.log('[Google Auth] New user created:', verifiedEmail, (created as any).id);
+      user = toResponse(created);
     }
 
-    // Set session cookie using Next.js cookies API
+    // --- Step 4: Set session cookie ---
     await setSessionCookie(user.id);
 
     return NextResponse.json(
@@ -138,7 +178,7 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Google auth error:', error);
+    console.error('[Google Auth] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error during Google authentication' },
       { status: 500 }

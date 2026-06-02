@@ -29,6 +29,8 @@ model User {
   spreadsheets  Spreadsheet[] @relation("SpreadsheetCreator")
   presentations Presentation[] @relation("PresentationCreator")
   createdWorkspaces Workspace[] @relation("WorkspaceCreator")
+  invitations      Invitation[] // received invitations
+  sentInvitations  Invitation[] @relation("Inviter") // sent invitations
 }
 
 model Workspace {
@@ -49,6 +51,7 @@ model Workspace {
   presentations Presentation[]
   tasks       Task[]
   messages    Message[]
+  invitations Invitation[]
   creator     User @relation("WorkspaceCreator", fields: [createdBy], references: [id])
 }
 
@@ -171,14 +174,32 @@ model Task {
 model Notification {
   id          String   @id @default(cuid())
   userId      String
-  type        String   @default("info") // mention, message, invite, task_assigned, etc.
+  type        String   @default("info") // workspace_invite, channel_invite, task_assigned, task_updated, task_completed, task_due_soon, document_uploaded, document_approved, document_rejected, document_review, system, info
   title       String
   message     String
   read        Boolean  @default(false)
   link        String?
   actorId     String?
   workspaceId String?
+  channelId   String?
+  invitationId String?
   createdAt   DateTime @default(now())
 
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Invitation {
+  id          String   @id @default(cuid())
+  userId      String
+  invitedBy   String
+  workspaceId String
+  channelId   String?
+  role        String   @default("member") // role to assign on accept
+  status      String   @default("pending") // pending, accepted, declined
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inviter     User      @relation("Inviter", fields: [invitedBy], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

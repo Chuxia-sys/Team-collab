@@ -18,14 +18,36 @@ export async function GET(
       return NextResponse.json({ error: 'Not a member of this workspace' }, { status: 403 });
     }
 
-    const members = await db.workspaceMember.findMany({
+    // Note: We avoid using orderBy on joinedAt since some member documents
+    // may not have a joinedAt field, which causes Firestore to exclude them.
+    // We sort in-memory instead.
+    const rawMembers = await db.workspaceMember.findMany({
       where: { workspaceId },
       include: {
         user: {
           select: { id: true, name: true, email: true, avatar: true, status: true },
         },
       },
-      orderBy: { joinedAt: 'asc' },
+    });
+
+    // Deduplicate by userId, keeping the one with the highest permission role
+    const roleRank: Record<string, number> = {
+      owner: 4, admin: 3, moderator: 2, member: 1, guest: 0,
+    };
+    const dedupMap = new Map<string, any>();
+    for (const m of rawMembers) {
+      const existing = dedupMap.get(m.userId);
+      if (!existing || (roleRank[m.role] ?? 0) > (roleRank[existing.role] ?? 0)) {
+        dedupMap.set(m.userId, m);
+      }
+    }
+    const members = Array.from(dedupMap.values());
+
+    // Sort by joinedAt (falling back to createdAt) in-memory
+    members.sort((a: any, b: any) => {
+      const aDate = a.joinedAt?.toDate?.()?.getTime() || a.createdAt?.toDate?.()?.getTime() || 0;
+      const bDate = b.joinedAt?.toDate?.()?.getTime() || b.createdAt?.toDate?.()?.getTime() || 0;
+      return aDate - bDate;
     });
 
     return NextResponse.json({ members }, { status: 200 });
@@ -74,6 +96,7 @@ export async function POST(
 
     const newMember = await db.workspaceMember.create({
       data: {
+        id: targetUser.id,
         workspaceId,
         userId: targetUser.id,
         role: role || 'member',

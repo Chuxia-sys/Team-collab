@@ -106,7 +106,7 @@ export function AccountSettingsDialog({ open, onOpenChange }: AccountSettingsDia
             <Avatar className={`size-14 ${user?.photoURL ? 'ring-2 ring-primary/30 ring-offset-2' : ''}`}>
               <AvatarImage src={user?.photoURL || undefined} alt={user?.name || ''} />
               <AvatarFallback className={`${user?.avatar || 'bg-primary'} text-white text-lg`}>
-                {user ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+                {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
               </AvatarFallback>
             </Avatar>
             <div>

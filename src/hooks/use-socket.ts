@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useRealtimeStore } from '@/stores/realtimeStore'
 import { useMessageStore } from '@/stores/messageStore'
+import { useNotificationStore } from '@/stores/notificationStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 
@@ -100,6 +101,24 @@ export function useSocket() {
       data.users.forEach((u) => {
         updatePresence({ ...u, status: 'online' })
       })
+    })
+
+    // ---- Real-time notification events ----
+    socket.on('new-notification', (data: {
+      id: string
+      userId: string
+      type: string
+      title: string
+      message: string
+      read: boolean
+      link: string | null
+      actorId: string | null
+      workspaceId: string | null
+      channelId: string | null
+      invitationId: string | null
+      createdAt: string
+    }) => {
+      useNotificationStore.getState().addRealTimeNotification(data as any)
     })
 
     // ---- Real-time message events ----

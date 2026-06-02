@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/sidebar'
 import {
   Menu,
-  Bell,
   Users,
   ChevronsUpDown,
   LogOut,
@@ -34,6 +33,7 @@ import {
   Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { NotificationCenter } from './notification-center'
 
 const statusOptions = [
   { value: 'online' as const, label: 'Online', emoji: '🟢', dotClass: 'bg-emerald-500' },
@@ -59,7 +59,8 @@ export function AppHeader() {
     navigate('workspace', { workspaceId, subView: 'home' })
   }
 
-  const getInitials = (name: string) => {
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return '?'
     return name
       .split(' ')
       .map((n) => n[0])
@@ -177,26 +178,7 @@ export function AppHeader() {
       </Button>
 
       {/* Notifications */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-9 relative"
-        onClick={() => {
-          if (currentWorkspaceId) {
-            navigate('workspace', { workspaceId: currentWorkspaceId, subView: 'notifications' })
-          }
-        }}
-      >
-        <Bell className="size-4" />
-        {unreadCount > 0 && (
-          <Badge
-            variant="destructive"
-            className="absolute -top-0.5 -right-0.5 size-4 min-w-4 p-0 text-[10px] flex items-center justify-center"
-          >
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </Badge>
-        )}
-      </Button>
+      <NotificationCenter />
 
       {/* Members panel toggle */}
       {currentWorkspaceId && (
@@ -220,7 +202,7 @@ export function AppHeader() {
             <Avatar className={`size-8 ${user?.photoURL ? 'ring-2 ring-primary/30' : ''}`}>
               <AvatarImage src={user?.photoURL || undefined} alt={user?.name || ''} />
               <AvatarFallback className={`${user?.avatar || 'bg-primary'} text-white text-xs`}>
-                {user ? getInitials(user.name) : '?'}
+                {getInitials(user?.name)}
               </AvatarFallback>
             </Avatar>
             {/* Google icon badge for Google users */}

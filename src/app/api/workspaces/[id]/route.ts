@@ -18,21 +18,10 @@ export async function GET(
       return NextResponse.json({ error: 'Not a member of this workspace' }, { status: 403 });
     }
 
+    // Fetch workspace without the include.members (applyIncludeRemote doesn't handle 'members' relation)
     const workspace = await db.workspace.findUnique({
       where: { id },
       include: {
-        members: {
-          select: {
-            id: true,
-            userId: true,
-            role: true,
-            joinedAt: true,
-            user: {
-              select: { id: true, name: true, email: true, avatar: true, status: true },
-            },
-          },
-          orderBy: { joinedAt: 'asc' },
-        },
         channels: {
           orderBy: { createdAt: 'asc' },
         },
@@ -49,7 +38,37 @@ export async function GET(
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ workspace }, { status: 200 });
+    // Manually fetch members
+    const members = await db.workspaceMember.findMany({
+      where: { workspaceId: id },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, avatar: true, status: true },
+        },
+      },
+    });
+
+    // Deduplicate by userId, keeping the one with the highest permission role
+    const roleRank: Record<string, number> = {
+      owner: 4, admin: 3, moderator: 2, member: 1, guest: 0,
+    };
+    const dedupMap = new Map<string, any>();
+    for (const m of members) {
+      const existing = dedupMap.get(m.userId);
+      if (!existing || (roleRank[m.role] ?? 0) > (roleRank[existing.role] ?? 0)) {
+        dedupMap.set(m.userId, m);
+      }
+    }
+    const dedupedMembers = Array.from(dedupMap.values());
+
+    // Sort by joinedAt (falling back to createdAt) in-memory
+    dedupedMembers.sort((a: any, b: any) => {
+      const aDate = a.joinedAt?.toDate?.()?.getTime() || a.createdAt?.toDate?.()?.getTime() || 0;
+      const bDate = b.joinedAt?.toDate?.()?.getTime() || b.createdAt?.toDate?.()?.getTime() || 0;
+      return aDate - bDate;
+    });
+
+    return NextResponse.json({ workspace: { ...workspace, members: dedupedMembers } }, { status: 200 });
   } catch (error) {
     console.error('Get workspace error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

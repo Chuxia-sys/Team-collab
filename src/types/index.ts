@@ -142,17 +142,56 @@ export interface Task {
 }
 
 // --- Notification ---
+export type NotificationType =
+  | 'workspace_invite'
+  | 'channel_invite'
+  | 'task_assigned'
+  | 'task_updated'
+  | 'task_completed'
+  | 'task_due_soon'
+  | 'document_uploaded'
+  | 'document_approved'
+  | 'document_rejected'
+  | 'document_review'
+  | 'system'
+  | 'info';
+
 export interface Notification {
   id: string;
   userId: string;
-  type: 'mention' | 'message' | 'invite' | 'task_assigned' | 'info';
+  type: NotificationType;
   title: string;
   message: string;
   read: boolean;
   link: string | null;
   actorId: string | null;
   workspaceId: string | null;
+  channelId?: string | null;
+  invitationId?: string | null;
   createdAt: string;
+  actor?: User | null;
+}
+
+export interface Invitation {
+  id: string;
+  userId: string;
+  invitedBy: string;
+  workspaceId: string;
+  channelId: string | null;
+  role: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+  updatedAt: string;
+  inviter?: User;
+  workspace?: Workspace;
+  channel?: Channel;
+}
+
+export interface NotificationPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 // --- API Response Types ---

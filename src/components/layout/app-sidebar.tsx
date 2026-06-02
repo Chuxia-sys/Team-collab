@@ -88,7 +88,8 @@ export function AppSidebar() {
     return currentSubView === subView
   }
 
-  const getInitials = (name: string) => {
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return '?'
     return name
       .split(' ')
       .map((n) => n[0])
@@ -101,7 +102,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-3">
+      <SidebarHeader className="h-14 border-b justify-center py-0 px-3">
         {currentWorkspace ? (
           <SidebarMenu>
             <SidebarMenuItem>
@@ -135,8 +136,6 @@ export function AppSidebar() {
           </div>
         )}
       </SidebarHeader>
-
-      <SidebarSeparator />
 
       <SidebarContent>
         {/* Dashboard */}
@@ -348,7 +347,6 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarSeparator />
         {user && (
           <SidebarMenu>
             <SidebarMenuItem>
@@ -356,7 +354,7 @@ export function AppSidebar() {
                 <Avatar className="size-8">
                   <AvatarImage src={user.avatar || undefined} alt={user.name} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {getInitials(user.name)}
+                    {getInitials(user?.name)}
                   </AvatarFallback>
                 </Avatar>
                 {state === 'expanded' && (

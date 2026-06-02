@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getAuthUser, requireWorkspaceMember } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { getFirestoreApp } from '@/lib/firebase';
 
 export async function PUT(
   request: NextRequest,
@@ -14,8 +16,16 @@ export async function PUT(
 
     const { id } = await params;
 
+    // Parse workspaceId/channelId from body
+    const body = await request.json();
+    const { workspaceId, channelId } = body;
+
+    if (!workspaceId || !channelId) {
+      return NextResponse.json({ error: 'workspaceId and channelId are required' }, { status: 400 });
+    }
+
     const message = await db.message.findUnique({
-      where: { id },
+      where: { id, workspaceId, channelId },
     });
     if (!message) {
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
@@ -26,14 +36,16 @@ export async function PUT(
     }
 
     // Verify user is a member of the workspace
-    const member = await requireWorkspaceMember(message.workspaceId, user.id);
-    if (!member) {
+    const firestore = getFirestoreApp();
+    const memberRef = doc(firestore, `workspaces/${workspaceId}/members/${user.id}`);
+    const memberSnap = await getDoc(memberRef);
+    if (!memberSnap.exists()) {
       return NextResponse.json({ error: 'Not a member of this workspace' }, { status: 403 });
     }
 
     // Toggle pin
     const updatedMessage = await db.message.update({
-      where: { id },
+      where: { id, workspaceId, channelId },
       data: { isPinned: !message.isPinned },
       include: {
         author: {
@@ -44,7 +56,7 @@ export async function PUT(
 
     return NextResponse.json({
       message: updatedMessage,
-      pinned: updatedMessage.isPinned,
+      pinned: updatedMessage?.isPinned ?? !message.isPinned,
     }, { status: 200 });
   } catch (error) {
     console.error('Toggle pin error:', error);

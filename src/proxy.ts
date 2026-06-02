@@ -1,0 +1,33 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function proxy(request: NextRequest) {
+  // Create a response
+  const response = NextResponse.next();
+
+  // Remove restrictive Cross-Origin-Opener-Policy header if Next.js dev server sets it,
+  // which would block Firebase auth popup from communicating back to the opener.
+  // Firebase signInWithPopup requires window.opener access to work correctly.
+  response.headers.delete('Cross-Origin-Opener-Policy');
+  response.headers.delete('Cross-Origin-Embedder-Policy');
+
+  // Set permissive COOP to allow cross-origin popup communication (needed for Firebase auth)
+  response.headers.set('Cross-Origin-Opener-Policy', 'unsafe-none');
+
+  return response;
+}
+
+// Apply to all routes except static files and API routes (API routes don't need COOP headers)
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder files
+     * - api routes (they don't need COOP)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};

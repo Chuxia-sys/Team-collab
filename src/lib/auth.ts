@@ -1,5 +1,7 @@
 import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
+import { doc, getDoc, getFirestore } from 'firebase/firestore';
+import { getFirestoreApp } from './firebase';
 import crypto from 'crypto';
 
 const SALT_LENGTH = 16;
@@ -27,20 +29,17 @@ export async function getAuthUser() {
     const userId = Buffer.from(session.value, 'base64').toString();
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatar: true,
-        photoURL: true,
-        authProvider: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
     });
-    return user;
-  } catch {
+    if (!user) return null;
+    // Convert Firestore Timestamps to ISO strings for API consistency
+    const { createdAt, updatedAt, ...rest } = user as any;
+    return {
+      ...rest,
+      createdAt: createdAt?.toDate?.()?.toISOString() || createdAt,
+      updatedAt: updatedAt?.toDate?.()?.toISOString() || updatedAt,
+    };
+  } catch (err) {
+    console.error('getAuthUser error:', err);
     return null;
   }
 }
@@ -72,12 +71,54 @@ export async function requireAuth() {
   return user;
 }
 
+/**
+ * Get workspace member by workspace and user.
+ * In Firestore, members are stored as subcollection: workspaces/{workspaceId}/members/{docId}
+ * where docId is either the userId (for new members) or a generated ID (for legacy members).
+ * We query by userId field to handle both cases.
+ */
 export async function getWorkspaceMember(workspaceId: string, userId: string) {
-  return db.workspaceMember.findUnique({
-    where: {
-      workspaceId_userId: { workspaceId, userId },
-    },
-  });
+  try {
+    const firestore = getFirestoreApp();
+    // Query ALL members by userId and return the one with the highest permission role.
+    // We intentionally do NOT do a direct doc-ID lookup first, because there can be
+    // duplicate member documents (e.g. legacy docs with generated IDs + newer docs
+    // created with userId as doc ID). The direct lookup might return a lower-role
+    // duplicate, causing permission checks to fail incorrectly.
+    const membersRef = collection(firestore, `workspaces/${workspaceId}/members`);
+    const q = query(membersRef, where('userId', '==', userId));
+    const querySnap = await getDocs(q);
+    if (!querySnap.empty) {
+      const roleRank: Record<string, number> = {
+        owner: 4, admin: 3, moderator: 2, member: 1, guest: 0,
+      };
+      let bestMember: any = null;
+      let bestRank = -1;
+      for (const d of querySnap.docs) {
+        const data = d.data();
+        const rank = roleRank[data.role] ?? 0;
+        if (rank > bestRank) {
+          bestRank = rank;
+          bestMember = { id: d.id, ...data };
+        }
+      }
+      return bestMember;
+    }
+    return null;
+  } catch {
+    // Fallback to the model-based query - find all matches and return highest role
+    const members = await db.workspaceMember.findMany({
+      where: { workspaceId, userId } as any,
+      parentId: workspaceId,
+    } as any);
+    if (members.length === 0) return null;
+    const roleRank: Record<string, number> = {
+      owner: 4, admin: 3, moderator: 2, member: 1, guest: 0,
+    };
+    return members.reduce((best: any, m: any) => {
+      return (roleRank[m.role] ?? 0) > (roleRank[best.role] ?? 0) ? m : best;
+    });
+  }
 }
 
 export async function requireWorkspaceMember(workspaceId: string, userId: string) {
