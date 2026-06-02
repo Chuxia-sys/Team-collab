@@ -685,7 +685,7 @@ export function ChannelView() {
               <p className="text-sm">Be the first to send a message in #{currentChannel.name}!</p>
             </div>
           ) : (
-            <div className="space-y-0">
+            <div className="space-y-1">
               {messages.map((message, index) => {
                 const isOwn = message.userId === user?.id;
                 const isHovered = hoveredMessageId === message.id;
@@ -706,108 +706,145 @@ export function ChannelView() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.15 }}
                       className={cn(
-                        'group relative rounded-lg px-2 py-0.5 transition-colors',
-                        isHovered && 'bg-muted/50',
+                        'group relative flex transition-colors',
+                        isOwn ? 'justify-end' : 'justify-start',
                         message.isDeleted && 'opacity-50',
-                        grouped && 'pl-14',
-                        message.parentId && 'bg-primary/[0.03] border-l-2 border-primary/20 ml-10',
-                        isCurrentSearchMatch && 'bg-primary/10 ring-2 ring-primary/30',
-                        isSearchMatch && !isCurrentSearchMatch && 'bg-primary/5',
+                        isCurrentSearchMatch && 'bg-primary/10 ring-2 ring-primary/30 rounded-lg',
+                        isSearchMatch && !isCurrentSearchMatch && 'bg-primary/5 rounded-lg',
                       )}
                       onMouseEnter={() => setHoveredMessageId(message.id)}
                       onMouseLeave={() => setHoveredMessageId(null)}
                     >
-                      {/* Reply Reference */}
-                      {message.parentId && (
-                        <div className="mb-1 ml-2 flex items-center gap-1 text-xs text-muted-foreground">
-                          <Reply className="h-3 w-3" />
-                          <span>Reply to {getMemberName(messages.find(m => m.id === message.parentId)?.userId || '')}</span>
-                        </div>
-                      )}
-
-                      {/* Bookmark indicator */}
-                      {isBookmarked && (
-                        <div className="absolute right-2 top-0 flex items-center text-amber-500">
-                          <Star className="h-3 w-3 fill-amber-500" />
-                        </div>
-                      )}
-
-                      <div className={cn('flex items-start gap-3', grouped ? 'py-0.5' : 'py-1')}>
-                        {/* Avatar - only show for first message in group */}
-                        {!grouped ? (
-                          <Avatar className="mt-0.5 h-9 w-9 shrink-0 ring-1 ring-background">
-                            <AvatarImage src={getMemberAvatar(message.userId) || undefined} />
-                            <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
-                              {getMemberName(message.userId).slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                        ) : (
-                          <div className="w-9 shrink-0 flex items-center justify-center">
-                            <span className="text-[10px] text-muted-foreground/0 group-hover:text-muted-foreground/50 transition-colors">
-                              {format(new Date(message.createdAt), 'HH:mm')}
-                            </span>
+                      {/* Chat bubble wrapper */}
+                      <div className={cn(
+                        'flex flex-col',
+                        isOwn ? 'items-end' : 'items-start',
+                        'max-w-[75%] md:max-w-[65%]',
+                      )}>
+                        {/* Reply Reference */}
+                        {message.parentId && (
+                          <div className={cn(
+                            'mb-0.5 flex items-center gap-1 text-[11px] text-muted-foreground',
+                            isOwn ? 'mr-2' : 'ml-2',
+                          )}>
+                            <Reply className="h-3 w-3" />
+                            <span>Replying to {getMemberName(messages.find(m => m.id === message.parentId)?.userId || '')}</span>
                           </div>
                         )}
 
-                        <div className="min-w-0 flex-1">
-                          {!grouped && (
+                        {/* Other user: avatar + name header (before bubble, for non-grouped) */}
+                        {!isOwn && !grouped && (
+                          <div className="flex items-end gap-2 mb-0.5 ml-1">
+                            <Avatar className="h-6 w-6 shrink-0 ring-1 ring-background">
+                              <AvatarImage src={getMemberAvatar(message.userId) || undefined} />
+                              <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-semibold">
+                                {getMemberName(message.userId).slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
                             <div className="flex items-baseline gap-2">
-                              <span className="text-sm font-semibold hover:underline cursor-pointer">
+                              <span className="text-sm font-semibold hover:underline cursor-pointer leading-none">
                                 {getMemberName(message.userId)}
                               </span>
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="text-[11px] text-muted-foreground leading-none">
                                 {format(new Date(message.createdAt), 'h:mm a')}
                               </span>
                               {message.isPinned && (
                                 <Pin className="h-3 w-3 text-primary" />
                               )}
                             </div>
+                          </div>
+                        )}
+
+                        {/* Own user: small timestamp before bubble (for non-grouped) */}
+                        {isOwn && !grouped && (
+                          <div className="flex items-center gap-1.5 mr-1 mb-0.5">
+                            <span className="text-[11px] text-muted-foreground">
+                              {format(new Date(message.createdAt), 'h:mm a')}
+                            </span>
+                            {message.isPinned && (
+                              <Pin className="h-3 w-3 text-primary" />
+                            )}
+                          </div>
+                        )}
+
+                        {/* The chat card/bubble */}
+                        <div className={cn(
+                          'relative rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words shadow-sm',
+                          isOwn
+                            ? 'bg-primary text-primary-foreground rounded-br-md'
+                            : 'bg-[#d3d3d3] text-foreground rounded-bl-md',
+                          message.isDeleted && 'bg-muted/30 italic text-muted-foreground',
+                          isBookmarked && isOwn && 'ring-2 ring-amber-500/30',
+                          isBookmarked && !isOwn && 'ring-2 ring-amber-500/30',
+                          // Grouped messages: no top rounding
+                          grouped && isOwn && 'rounded-tr-md',
+                          grouped && !isOwn && 'rounded-tl-md',
+                          // Thread/reply reference
+                          message.parentId && isOwn && 'rounded-tr-md',
+                          message.parentId && !isOwn && 'rounded-tl-md',
+                        )}>
+                          {/* Bookmark indicator inside bubble */}
+                          {isBookmarked && (
+                            <span className="absolute -top-1.5 -right-1.5 text-amber-500">
+                              <Star className="h-3.5 w-3.5 fill-amber-500 drop-shadow-sm" />
+                            </span>
                           )}
 
                           {message.isDeleted ? (
-                            <p className="text-sm italic text-muted-foreground">
-                              This message has been deleted
-                            </p>
+                            <p className="text-sm italic">This message has been deleted</p>
                           ) : (
-                            <div className={cn(
-                              'text-sm whitespace-pre-wrap break-words rounded-lg px-0 py-0.5',
-                              // Subtle background for own messages
-                              isOwn && !grouped && 'bg-primary/[0.04] -mx-1 px-2 py-1 rounded-lg'
-                            )}>
+                            <>
                               {isSearchActive ? (
                                 <HighlightedText text={message.content} highlight={searchQuery} />
                               ) : (
                                 message.content
                               )}
-                            </div>
+                            </>
                           )}
 
+                          {/* Timestamp for grouped messages (inside bubble) */}
+                          {grouped && (
+                            <span className={cn(
+                              'block text-[10px] mt-1 leading-none',
+                              isOwn ? 'text-primary-foreground/60 text-right' : 'text-muted-foreground/60',
+                            )}>
+                              {format(new Date(message.createdAt), 'h:mm a')}
+                            </span>
+                          )}
+
+                          {/* Edited indicator */}
                           {message.isEdited && !message.isDeleted && (
-                            <span className="text-[10px] text-muted-foreground">(edited)</span>
-                          )}
-
-                          {/* Reactions display */}
-                          <MessageReactions
-                            reactions={reactions}
-                            onReact={(emoji) => handleReact(message.id, emoji)}
-                          />
-
-                          {/* Thread indicator with reply count */}
-                          {message.replyCount > 0 && (
-                            <div className="mt-1 flex items-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
-                              <div className="flex -space-x-1">
-                                {[...Array(Math.min(message.replyCount, 3))].map((_, i) => (
-                                  <div key={i} className="size-4 rounded-full bg-primary/10 border border-background flex items-center justify-center">
-                                    <MessageSquare className="h-2 w-2 text-primary" />
-                                  </div>
-                                ))}
-                              </div>
-                              <span className="font-medium">
-                                {message.replyCount} {message.replyCount === 1 ? 'reply' : 'replies'}
-                              </span>
-                            </div>
+                            <span className={cn(
+                              'text-[10px] ml-1',
+                              isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground',
+                            )}>(edited)</span>
                           )}
                         </div>
+
+                        {/* Reactions - outside bubble, aligned to the message */}
+                        <MessageReactions
+                          reactions={reactions}
+                          onReact={(emoji) => handleReact(message.id, emoji)}
+                        />
+
+                        {/* Thread indicator with reply count */}
+                        {message.replyCount > 0 && (
+                          <div className={cn(
+                            'mt-0.5 flex items-center gap-1.5 text-xs text-primary cursor-pointer hover:underline',
+                            isOwn ? 'mr-2' : 'ml-2',
+                          )}>
+                            <div className="flex -space-x-1">
+                              {[...Array(Math.min(message.replyCount, 3))].map((_, i) => (
+                                <div key={i} className="size-4 rounded-full bg-primary/10 border border-background flex items-center justify-center">
+                                  <MessageSquare className="h-2 w-2 text-primary" />
+                                </div>
+                              ))}
+                            </div>
+                            <span className="font-medium">
+                              {message.replyCount} {message.replyCount === 1 ? 'reply' : 'replies'}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Hover Actions */}
@@ -817,7 +854,10 @@ export function ChannelView() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="absolute right-2 top-0 flex items-center gap-0.5 rounded-md border bg-background p-0.5 shadow-sm"
+                            className={cn(
+                              'absolute top-0 flex items-center gap-0.5 rounded-md border bg-background p-0.5 shadow-sm z-10',
+                              isOwn ? 'left-0 -translate-x-2' : 'right-0 translate-x-2',
+                            )}
                           >
                             <TooltipProvider>
                               <Tooltip>
@@ -992,7 +1032,7 @@ export function ChannelView() {
             )}
           </AnimatePresence>
 
-          <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-1 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/85 px-3 py-1 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>

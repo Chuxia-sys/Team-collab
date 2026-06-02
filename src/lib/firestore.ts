@@ -733,12 +733,18 @@ class FirestoreSubModel<T extends Record<string, unknown>> {
       }
     }
 
-    if (field === this.idField && typeof value === 'string') {
-      return null; // Need parentId for subcollection doc ref
-    }
-
     const parentId = (params.where as any).parentId || (params.where as any).workspaceId;
     if (parentId) {
+      // If querying by document ID, use doc() directly for exact lookup
+      if (field === this.idField && typeof value === 'string') {
+        const docRef = doc(db, this.getSubPath(parentId), value);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) return null;
+        let result = this.docToData(docSnap);
+        result = this.applySelect(result, params.select);
+        result = await this.applyIncludeRemote(result, params.include);
+        return result;
+      }
       const subColRef = collection(db, this.getSubPath(parentId));
       const q = query(subColRef, where(field, '==', value), limit(1));
       const snapshot = await getDocs(q);
@@ -784,7 +790,7 @@ class FirestoreSubModel<T extends Record<string, unknown>> {
       } else {
         const entries = Object.entries(params.where);
         for (const [field, value] of entries) {
-          if (value !== undefined && field !== 'workspaceId' && field !== 'userId' && field !== 'parentId') {
+          if (value !== undefined && field !== 'workspaceId' && field !== 'userId' && field !== 'parentId' && field !== this.idField) {
             // Skip Prisma-style relation filters
             if (typeof value === 'object' && value !== null && !(value instanceof Timestamp)) continue;
             constraints.push(where(field, '==', value));
