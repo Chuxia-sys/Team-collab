@@ -20,6 +20,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,7 +39,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { Label } from '@/components/ui/label'
-import { X, Search, UserPlus, Shield, Crown, Circle, Wifi, WifiOff } from 'lucide-react'
+import { X, Search, UserPlus, Shield, Crown, Circle, Wifi, WifiOff, Link2, Copy, Check, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ROLE_BADGE_COLORS: Record<string, string> = {
@@ -45,7 +51,7 @@ const ROLE_BADGE_COLORS: Record<string, string> = {
 }
 
 export function MembersPanel() {
-  const { members, currentWorkspace, inviteMember } = useWorkspaceStore()
+  const { members, currentWorkspace, inviteMember, generateInviteCode } = useWorkspaceStore()
   const { user } = useAuthStore()
   const { membersPanelOpen, setMembersPanelOpen } = useUIStore()
   const currentWorkspaceId = useUIStore((s) => s.currentWorkspaceId)
@@ -57,6 +63,8 @@ export function MembersPanel() {
   const [inviteRole, setInviteRole] = useState('member')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
+  const [generatingCode, setGeneratingCode] = useState(false)
 
   // Use real-time presence to determine online status, fallback to user.status
   const getEffectiveStatus = (member: typeof members[0]) => {
@@ -221,42 +229,102 @@ export function MembersPanel() {
                 </Button>
               )}
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Invite Member</DialogTitle>
+                <DialogTitle>Invite Members</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label>Email Address</Label>
-                  <Input
-                    placeholder="colleague@example.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    type="email"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Role</Label>
-                  <Select value={inviteRole} onValueChange={setInviteRole}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="moderator">Moderator</SelectItem>
-                      <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="guest">Guest</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  onClick={handleInvite}
-                  disabled={!inviteEmail || inviteLoading}
-                  className="w-full"
-                >
-                  {inviteLoading ? 'Inviting...' : 'Send Invite'}
-                </Button>
-              </div>
+              <Tabs defaultValue="email" className="pt-2">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="email" className="text-xs gap-1.5">
+                    <UserPlus className="size-3.5" />
+                    Email Invite
+                  </TabsTrigger>
+                  <TabsTrigger value="code" className="text-xs gap-1.5">
+                    <Link2 className="size-3.5" />
+                    Invite Code
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Email Invite Tab */}
+                <TabsContent value="email" className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>Email Address</Label>
+                    <Input
+                      placeholder="colleague@example.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      type="email"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Role</Label>
+                    <Select value={inviteRole} onValueChange={setInviteRole}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="moderator">Moderator</SelectItem>
+                        <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="guest">Guest</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={handleInvite}
+                    disabled={!inviteEmail || inviteLoading}
+                    className="w-full"
+                  >
+                    {inviteLoading ? 'Inviting...' : 'Send Invite'}
+                  </Button>
+                </TabsContent>
+
+                {/* Invite Code Tab */}
+                <TabsContent value="code" className="space-y-4 pt-4">
+                  <div className="rounded-lg border bg-muted/30 p-4">
+                    <Label className="text-xs text-muted-foreground mb-2 block">
+                      Share this code with people you want to invite. They can join instantly by pasting it in the Join Workspace dialog.
+                    </Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <div className="flex-1 bg-background border rounded-md px-3 py-2.5 font-mono text-sm tracking-wider select-all">
+                        {currentWorkspace?.inviteCode || 'No code available'}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-10 shrink-0"
+                        onClick={async () => {
+                          if (currentWorkspace?.inviteCode) {
+                            await navigator.clipboard.writeText(currentWorkspace.inviteCode);
+                            setCopiedCode(true);
+                            setTimeout(() => setCopiedCode(false), 2000);
+                          }
+                        }}
+                        title="Copy invite code"
+                      >
+                        {copiedCode ? (
+                          <Check className="size-4 text-green-500" />
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={async () => {
+                      setGeneratingCode(true);
+                      await generateInviteCode(currentWorkspaceId!);
+                      setGeneratingCode(false);
+                    }}
+                    disabled={generatingCode || !currentWorkspaceId}
+                  >
+                    <RefreshCw className={cn('size-4', generatingCode && 'animate-spin')} />
+                    {generatingCode ? 'Generating...' : 'Regenerate Code'}
+                  </Button>
+                </TabsContent>
+              </Tabs>
             </DialogContent>
           </Dialog>
           <Button

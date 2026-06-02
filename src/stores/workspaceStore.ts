@@ -29,6 +29,7 @@ interface WorkspaceActions {
   updateMemberRole: (workspaceId: string, userId: string, role: string) => Promise<void>;
   removeMember: (workspaceId: string, userId: string) => Promise<void>;
   joinWorkspace: (inviteCode: string) => Promise<Workspace | null>;
+  generateInviteCode: (workspaceId: string) => Promise<string | null>;
   clearError: () => void;
 }
 
@@ -226,12 +227,8 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>((set,
         return;
       }
 
-      const member = data.member;
-      set((state) => ({
-        members: [...state.members, member],
-        workspaceRoles: { ...state.workspaceRoles, [member.userId]: member.role },
-        isLoading: false,
-      }));
+      // The invitation was sent; the invited user must accept via notification
+      set({ isLoading: false });
     } catch {
       set({ error: 'Network error. Please try again.', isLoading: false });
     }
@@ -318,6 +315,40 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>((set,
       }));
 
       return workspace;
+    } catch {
+      set({ error: 'Network error. Please try again.', isLoading: false });
+      return null;
+    }
+  },
+
+  generateInviteCode: async (workspaceId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/invite-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        set({ error: data.error || 'Failed to generate invite code', isLoading: false });
+        return null;
+      }
+
+      // Update the current workspace and the workspace in the workspaces list
+      const newCode = data.inviteCode;
+      set((state) => ({
+        currentWorkspace: state.currentWorkspace
+          ? { ...state.currentWorkspace, inviteCode: newCode }
+          : null,
+        workspaces: state.workspaces.map((w) =>
+          w.id === workspaceId ? { ...w, inviteCode: newCode } : w
+        ),
+        isLoading: false,
+      }));
+
+      return newCode;
     } catch {
       set({ error: 'Network error. Please try again.', isLoading: false });
       return null;

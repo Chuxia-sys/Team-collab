@@ -46,6 +46,38 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
         try {
           const firebaseModule = await import('@/lib/firebase');
           if (firebaseModule.isFirebaseConfigured && firebaseModule.auth) {
+            // Check for redirect-based sign-in result first
+            try {
+              const { getRedirectResult } = await import('firebase/auth');
+              const redirectResult = await getRedirectResult(firebaseModule.auth);
+              if (redirectResult?.user) {
+                const idToken = await redirectResult.user.getIdToken();
+                const redirectRes = await fetch('/api/auth/google', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    idToken,
+                    email: redirectResult.user.email,
+                    name: redirectResult.user.displayName,
+                    photoURL: redirectResult.user.photoURL,
+                  }),
+                });
+                if (redirectRes.ok) {
+                  const redirectData: AuthResponse = await redirectRes.json();
+                  set({ user: redirectData.user, initialized: true, isLoading: false });
+                  const { useUIStore: uiStore2 } = await import('./uiStore');
+                  if (uiState.currentView === 'login' || uiState.currentView === 'register' || uiState.currentView === 'landing') {
+                    uiStore2.getState().navigate('dashboard');
+                  }
+                  toast({ title: 'Welcome!', description: `Signed in as ${redirectData.user.name}` });
+                  return;
+                }
+              }
+            } catch (redirectErr) {
+              // Redirect result check failed, continue with normal flow
+              console.warn('getRedirectResult check failed:', redirectErr);
+            }
+
             const { onAuthStateChanged } = await import('firebase/auth');
             onAuthStateChanged(firebaseModule.auth, async (firebaseUser) => {
               if (firebaseUser) {
@@ -157,39 +189,75 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
 
       // Dynamically import Firebase to avoid SSR issues
       const { auth, googleProvider } = await import('@/lib/firebase');
-      const { signInWithPopup } = await import('firebase/auth');
+      const { signInWithPopup, signInWithRedirect } = await import('firebase/auth');
 
-      const result = await signInWithPopup(auth, googleProvider);
-      const credential = result.user;
+      try {
+        // Try popup-based sign-in first
+        const result = await signInWithPopup(auth, googleProvider);
+        const credential = result.user;
 
-      // Get ID token for server verification
-      const idToken = await credential.getIdToken();
+        // Get ID token for server verification
+        const idToken = await credential.getIdToken();
 
-      // Send to our backend for verification and user creation/login
-      const res = await fetch('/api/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idToken,
-          email: credential.email,
-          name: credential.displayName,
-          photoURL: credential.photoURL,
-        }),
-      });
+        // Send to our backend for verification and user creation/login
+        const res = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idToken,
+            email: credential.email,
+            name: credential.displayName,
+            photoURL: credential.photoURL,
+          }),
+        });
 
-      const data = await res.json();
+        // Try to parse JSON; if it fails (e.g. server returns HTML error page), show a clear message
+        let data: any;
+        try {
+          data = await res.json();
+        } catch {
+          set({ error: 'Server error. Please try again or use email sign-in.', isGoogleLoading: false });
+          toast({ title: 'Google Sign-In failed', description: 'The server returned an unexpected response. Please try again.', variant: 'destructive' });
+          return;
+        }
 
-      if (!res.ok) {
-        set({ error: data.error || 'Google sign-in failed', isGoogleLoading: false });
-        toast({ title: 'Google Sign-In failed', description: data.error || 'Could not sign in with Google. Please try again.', variant: 'destructive' });
-        return;
+        if (!res.ok) {
+          set({ error: data.error || 'Google sign-in failed. Please try again.', isGoogleLoading: false });
+          toast({ title: 'Google Sign-In failed', description: data.error || 'Could not sign in with Google. Please try again.', variant: 'destructive' });
+          return;
+        }
+
+        set({ user: data.user, isGoogleLoading: false, error: null });
+        // Navigate to dashboard after successful Google sign-in
+        const { useUIStore } = await import('./uiStore');
+        useUIStore.getState().navigate('dashboard');
+        toast({ title: 'Welcome back!', description: `Signed in as ${data.user.name}` });
+      } catch (popupErr: unknown) {
+        const popupError = popupErr as { code?: string };
+        // If popup was blocked, fall back to redirect-based sign-in
+        if (popupError.code === 'auth/popup-blocked') {
+          toast({
+            title: 'Popup blocked',
+            description: 'Redirecting to Google sign-in...',
+          });
+          try {
+            await signInWithRedirect(auth, googleProvider);
+            // Page will redirect; result is handled on return via getRedirectResult
+            return;
+          } catch (redirectErr: unknown) {
+            const redirectError = redirectErr as { code?: string; message?: string };
+            console.error('Google sign-in redirect error:', redirectError);
+            set({ error: redirectError.code === 'auth/operation-not-supported-in-this-environment'
+              ? 'This browser does not support redirect sign-in. Please enable popups.'
+              : 'Redirect sign-in failed. Please try again or use email sign-in.', isGoogleLoading: false });
+            toast({ title: 'Redirect sign-in failed', description: redirectError.code === 'auth/operation-not-supported-in-this-environment'
+              ? 'Please enable popups for this site and try again.'
+              : redirectError.message || 'An unexpected error occurred.', variant: 'destructive' });
+            return;
+          }
+        }
+        throw popupErr; // Re-throw other popup errors to outer catch
       }
-
-      set({ user: data.user, isGoogleLoading: false, error: null });
-      // Navigate to dashboard after successful Google sign-in
-      const { useUIStore } = await import('./uiStore');
-      useUIStore.getState().navigate('dashboard');
-      toast({ title: 'Welcome back!', description: `Signed in as ${data.user.name}` });
     } catch (err: unknown) {
       console.error('Google sign-in error:', err);
       // Handle specific Firebase errors
@@ -199,7 +267,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
         return;
       }
       if (firebaseError.code === 'auth/popup-blocked') {
-        set({ error: 'Popup was blocked by your browser. Please allow popups and try again.', isGoogleLoading: false });
+        set({ error: 'Popup was blocked by your browser. Please allow popups and try again, or use email sign-in.', isGoogleLoading: false });
         toast({ title: 'Popup blocked', description: 'Please allow popups in your browser settings and try again.', variant: 'destructive' });
         return;
       }
@@ -212,8 +280,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
         toast({ title: 'Network error', description: 'Please check your connection and try again.', variant: 'destructive' });
         return;
       }
-      set({ error: 'Google sign-in failed. Please try again.', isGoogleLoading: false });
-      toast({ title: 'Google Sign-In failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
+      // Generic fallback with the actual error for debugging
+      const errorMessage = firebaseError.message || 'An unexpected error occurred. Please try again.';
+      set({ error: `Google sign-in failed: ${errorMessage}`, isGoogleLoading: false });
+      toast({ title: 'Google Sign-In failed', description: errorMessage, variant: 'destructive' });
     }
   },
 

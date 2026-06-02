@@ -85,7 +85,11 @@ export function AccountSettingsDialog({ open, onOpenChange }: AccountSettingsDia
     }
   }
 
-  const createdAt = user?.createdAt ? new Date(user.createdAt) : new Date()
+  const createdAt = (() => {
+    if (!user?.createdAt) return null;
+    const d = new Date(user.createdAt);
+    return isNaN(d.getTime()) ? null : d;
+  })();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -208,7 +212,11 @@ export function AccountSettingsDialog({ open, onOpenChange }: AccountSettingsDia
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="size-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Member since:</span>
-                <span className="font-medium">{format(createdAt, 'MMMM d, yyyy')}</span>
+                {createdAt ? (
+                  <span className="font-medium">{format(createdAt, 'MMMM d, yyyy')}</span>
+                ) : (
+                  <span className="font-medium text-muted-foreground">Unknown</span>
+                )}
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <User className="size-4 text-muted-foreground" />

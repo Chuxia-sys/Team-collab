@@ -13,6 +13,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Link2, Copy, Check } from 'lucide-react'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 
 interface JoinWorkspaceDialogProps {
   open: boolean
@@ -25,6 +26,7 @@ export function JoinWorkspaceDialog({ open, onOpenChange, onJoined }: JoinWorksp
   const [isJoining, setIsJoining] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const joinWorkspace = useWorkspaceStore((s) => s.joinWorkspace)
 
   const handleJoin = async () => {
     if (!inviteCode.trim()) {
@@ -37,20 +39,15 @@ export function JoinWorkspaceDialog({ open, onOpenChange, onJoined }: JoinWorksp
     setIsJoining(true)
 
     try {
-      const res = await fetch('/api/workspaces/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inviteCode: inviteCode.trim() }),
-      })
+      const workspace = await joinWorkspace(inviteCode.trim())
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Failed to join workspace')
+      if (!workspace) {
+        const storeError = useWorkspaceStore.getState().error
+        setError(storeError || 'Failed to join workspace')
         return
       }
 
-      setSuccess(data.message || 'Joined workspace successfully!')
+      setSuccess(`Joined "${workspace.name}" successfully!`)
       setInviteCode('')
 
       // Notify parent

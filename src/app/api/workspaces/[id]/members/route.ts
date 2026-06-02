@@ -85,6 +85,7 @@ export async function POST(
       return NextResponse.json({ error: 'User not found with this email' }, { status: 404 });
     }
 
+    // Check if user is already a member
     const existingMember = await db.workspaceMember.findUnique({
       where: {
         workspaceId_userId: { workspaceId, userId: targetUser.id },
@@ -94,32 +95,49 @@ export async function POST(
       return NextResponse.json({ error: 'User is already a member of this workspace' }, { status: 409 });
     }
 
-    const newMember = await db.workspaceMember.create({
+    // Check for a pending invitation that hasn't been responded to
+    // We query by userId and filter in-memory to avoid needing a Firestore composite index
+    const allInvitations = await db.invitation.findMany({
+      where: { userId: targetUser.id },
+    });
+    const pendingInvitation = allInvitations.find(
+      (inv: any) => inv.workspaceId === workspaceId && inv.status === 'pending'
+    );
+    if (pendingInvitation) {
+      return NextResponse.json({ error: 'User already has a pending invitation to this workspace' }, { status: 409 });
+    }
+
+    // Create an invitation instead of directly adding the member
+    const invitation = await db.invitation.create({
       data: {
-        id: targetUser.id,
-        workspaceId,
         userId: targetUser.id,
+        invitedBy: user.id,
+        workspaceId,
         role: role || 'member',
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, avatar: true, status: true },
-        },
+        status: 'pending',
       },
     });
 
+    // Send a notification with accept/decline options to the invited user
     await db.notification.create({
       data: {
         userId: targetUser.id,
-        type: 'invite',
-        title: 'Workspace Invite',
-        message: `${user.name} added you to a workspace`,
+        type: 'workspace_invite',
+        title: 'Workspace Invitation',
+        message: `${user.name} invited you to join a workspace`,
         actorId: user.id,
         workspaceId,
+        invitationId: invitation.id,
       },
     });
 
-    return NextResponse.json({ member: newMember }, { status: 201 });
+    return NextResponse.json({
+      message: 'Invitation sent',
+      invitation: {
+        id: invitation.id,
+        status: invitation.status,
+      },
+    }, { status: 201 });
   } catch (error) {
     console.error('Add member error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

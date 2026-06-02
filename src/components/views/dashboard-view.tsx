@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import type { Workspace } from '@/types'
 import { NotificationCenter } from '@/components/layout/notification-center'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -67,8 +68,17 @@ import {
   Compass,
   Lightbulb,
   MessageCircle,
+  Copy,
 } from 'lucide-react'
 import { JoinWorkspaceDialog } from '@/components/workspace/join-workspace-dialog'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
+import { toast } from '@/hooks/use-toast'
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -279,7 +289,7 @@ function OnboardingModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
 
 export function DashboardView() {
   const { user, logout } = useAuthStore()
-  const { workspaces, loadWorkspaces, createWorkspace, deleteWorkspace, leaveWorkspace, isLoading } = useWorkspaceStore()
+  const { workspaces, loadWorkspaces, createWorkspace, deleteWorkspace, leaveWorkspace, generateInviteCode, isLoading } = useWorkspaceStore()
   const { navigate, onboardingSeen, setOnboardingSeen } = useUIStore()
   const { loadNotifications } = useNotificationStore()
 
@@ -289,6 +299,9 @@ export function DashboardView() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [leaveId, setLeaveId] = useState<string | null>(null)
   const [joinOpen, setJoinOpen] = useState(false)
+  const [inviteCodeTarget, setInviteCodeTarget] = useState<Workspace | null>(null)
+  const [inviteCodeValue, setInviteCodeValue] = useState('')
+  const [isRegenerating, setIsRegenerating] = useState(false)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
 
   useEffect(() => {
@@ -331,6 +344,35 @@ export function DashboardView() {
     if (!leaveId) return
     await leaveWorkspace(leaveId)
     setLeaveId(null)
+  }
+
+  const handleShowInviteCode = async (ws: Workspace) => {
+    setInviteCodeTarget(ws)
+    // If workspace already has an invite code, show it; otherwise generate one
+    if (ws.inviteCode) {
+      setInviteCodeValue(ws.inviteCode)
+    } else {
+      setIsRegenerating(true)
+      const code = await generateInviteCode(ws.id)
+      if (code) {
+        setInviteCodeValue(code)
+        // Update the workspace in the local list immediately
+        setInviteCodeTarget((prev) => prev ? { ...prev, inviteCode: code } : prev)
+      }
+      setIsRegenerating(false)
+    }
+  }
+
+  const handleRegenerateInviteCode = async () => {
+    if (!inviteCodeTarget) return
+    setIsRegenerating(true)
+    const code = await generateInviteCode(inviteCodeTarget.id)
+    if (code) {
+      setInviteCodeValue(code)
+      setInviteCodeTarget((prev) => prev ? { ...prev, inviteCode: code } : prev)
+      toast({ title: 'Invite code regenerated' })
+    }
+    setIsRegenerating(false)
   }
 
   const handleOpenWorkspace = (workspaceId: string) => {
@@ -731,6 +773,15 @@ export function DashboardView() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                {(myRole === 'owner' || myRole === 'admin') && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleShowInviteCode(ws)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Link2 className="size-4 mr-2" />
+                                    Invite Code
+                                  </DropdownMenuItem>
+                                )}
                                 {myRole === 'owner' && (
                                   <DropdownMenuItem
                                     onClick={() => setDeleteId(ws.id)}
@@ -962,6 +1013,88 @@ export function DashboardView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Invite Code Sheet */}
+      <Sheet open={!!inviteCodeTarget} onOpenChange={(open) => { if (!open) setInviteCodeTarget(null) }}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader className="mb-6">
+            <SheetTitle className="flex items-center gap-2">
+              <Link2 className="size-5 text-primary" />
+              Invite Code
+            </SheetTitle>
+            <SheetDescription>
+              Share this code with people you want to invite to <strong>{inviteCodeTarget?.name}</strong>.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-6">
+            {/* Invite code display */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Workspace Invite Code</Label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-lg border bg-muted/30 px-4 py-3 font-mono text-lg tracking-wider text-center select-all">
+                  {isRegenerating ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      Generating...
+                    </div>
+                  ) : (
+                    inviteCodeValue || 'No code'
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteCodeValue)
+                    toast({ title: 'Copied!', description: 'Invite code copied to clipboard.' })
+                  }}
+                  disabled={!inviteCodeValue || isRegenerating}
+                >
+                  <Copy className="size-4 mr-2" />
+                  Copy Code
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleRegenerateInviteCode}
+                  disabled={isRegenerating}
+                >
+                  {isRegenerating ? (
+                    <div className="flex items-center gap-2">
+                      <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      Regenerating...
+                    </div>
+                  ) : (
+                    <>
+                      <Rocket className="size-4 mr-2" />
+                      Regenerate
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Info card */}
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Users className="size-4 text-primary" />
+                How it works
+              </h4>
+              <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+                <li>Share this code with people you trust</li>
+                <li>They can join by clicking <strong>Join Workspace</strong> on the dashboard</li>
+                <li>Regenerating the code invalidates the previous one</li>
+                <li>Anyone with the code can join as a <strong>member</strong></li>
+              </ul>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
