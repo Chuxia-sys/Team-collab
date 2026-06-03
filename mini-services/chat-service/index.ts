@@ -380,6 +380,144 @@ io.on('connection', (socket) => {
     }
   )
 
+  // ---- Voice Channel Events ----
+  // Track voice participants per channel: Map<channelId, Map<userId, VoiceParticipant>>
+  const voiceChannelParticipants = new Map<string, Map<string, {
+    userId: string
+    username: string
+    avatar: string | null
+    isMuted: boolean
+    socketId: string
+  }>>()
+
+  socket.on(
+    'voice-channel-join',
+    (data: { channelId: string; workspaceId: string; isMuted: boolean }) => {
+      const { channelId, workspaceId, isMuted } = data
+      const user = onlineUsers.get(socket.id)
+      if (!user) return
+
+      // Add user to voice participants for this channel
+      if (!voiceChannelParticipants.has(channelId)) {
+        voiceChannelParticipants.set(channelId, new Map())
+      }
+      const channelVoice = voiceChannelParticipants.get(channelId)!
+      channelVoice.set(user.userId, {
+        userId: user.userId,
+        username: user.username,
+        avatar: user.avatar,
+        isMuted,
+        socketId: socket.id,
+      })
+
+      // Ensure user is in the channel room for voice signaling
+      socket.join(`channel:${channelId}`)
+
+      // Notify ALL users in the channel (including self) that a user joined
+      io.to(`channel:${channelId}`).emit('voice-user-joined', {
+        channelId,
+        workspaceId,
+        user: {
+          userId: user.userId,
+          username: user.username,
+          avatar: user.avatar,
+          isMuted,
+        },
+        // Send the full list of current voice participants so new joiners can connect
+        participants: Array.from(channelVoice.values()).map((p) => ({
+          userId: p.userId,
+          username: p.username,
+          avatar: p.avatar,
+          isMuted: p.isMuted,
+        })),
+      })
+
+      console.log(
+        `[ChatService] ${user.username} joined voice channel: ${channelId}`
+      )
+    }
+  )
+
+  socket.on(
+    'voice-channel-leave',
+    (data: { channelId: string; workspaceId: string }) => {
+      const { channelId } = data
+      const user = onlineUsers.get(socket.id)
+      if (!user) return
+
+      // Remove user from voice participants
+      const channelVoice = voiceChannelParticipants.get(channelId)
+      if (channelVoice) {
+        channelVoice.delete(user.userId)
+        if (channelVoice.size === 0) {
+          voiceChannelParticipants.delete(channelId)
+        }
+      }
+
+      // Notify all users in the channel
+      socket.to(`channel:${channelId}`).emit('voice-user-left', {
+        channelId,
+        userId: user.userId,
+      })
+
+      console.log(
+        `[ChatService] ${user.username} left voice channel: ${channelId}`
+      )
+    }
+  )
+
+  socket.on(
+    'voice-toggle-mute',
+    (data: { channelId: string; isMuted: boolean }) => {
+      const { channelId, isMuted } = data
+      const user = onlineUsers.get(socket.id)
+      if (!user) return
+
+      // Update mute state in stored participants
+      const channelVoice = voiceChannelParticipants.get(channelId)
+      if (channelVoice) {
+        const participant = channelVoice.get(user.userId)
+        if (participant) {
+          participant.isMuted = isMuted
+        }
+      }
+
+      // Broadcast mute state change to all users in the channel
+      io.to(`channel:${channelId}`).emit('voice-user-muted', {
+        channelId,
+        userId: user.userId,
+        isMuted,
+      })
+    }
+  )
+
+  // ---- WebRTC Signaling (relayed through server) ----
+  socket.on(
+    'voice-signal',
+    (data: {
+      channelId: string
+      targetUserId: string
+      signal: any // RTCSessionDescription or RTCIceCandidate
+    }) => {
+      const { channelId, targetUserId, signal } = data
+      const user = onlineUsers.get(socket.id)
+      if (!user) return
+
+      // Forward the signal to the target user's socket(s)
+      const userSockets = userSocketMap.get(targetUserId)
+      if (userSockets) {
+        for (const targetSocketId of userSockets) {
+          io.to(targetSocketId).emit('voice-signal', {
+            channelId,
+            userId: user.userId,
+            username: user.username,
+            signal,
+          })
+        }
+      }
+    }
+  )
+
   // ---- Notification events ----
   socket.on(
     'send-notification',
@@ -435,6 +573,20 @@ io.on('connection', (socket) => {
               status: 'offline',
             }
           )
+        }
+      }
+    }
+
+    // Clean up voice channel participation
+    for (const [channelId, participants] of voiceChannelParticipants.entries()) {
+      if (participants.has(user.userId)) {
+        participants.delete(user.userId)
+        io.to(`channel:${channelId}`).emit('voice-user-left', {
+          channelId,
+          userId: user.userId,
+        })
+        if (participants.size === 0) {
+          voiceChannelParticipants.delete(channelId)
         }
       }
     }

@@ -36,6 +36,15 @@ export interface PresenceUpdate {
   status: 'online' | 'offline' | 'away' | 'busy'
 }
 
+// ---- Voice Participant ----
+export interface VoiceParticipant {
+  userId: string
+  username: string
+  avatar: string | null
+  isMuted: boolean
+  isSpeaking?: boolean
+}
+
 // ---- Socket Emit Function Types ----
 export interface SocketEmits {
   emitTypingStart: (channelId: string) => void
@@ -55,6 +64,11 @@ export interface SocketEmits {
     isEdited: boolean
   }) => void
   emitMessageDeleted: (data: { messageId: string; channelId: string }) => void
+  // Voice events
+  emitVoiceJoin: (channelId: string, workspaceId: string, isMuted: boolean) => void
+  emitVoiceLeave: (channelId: string, workspaceId: string) => void
+  emitVoiceToggleMute: (channelId: string, isMuted: boolean) => void
+  emitVoiceSignal: (channelId: string, targetUserId: string, signal: any) => void
 }
 
 interface RealtimeState {
@@ -63,6 +77,8 @@ interface RealtimeState {
   typingUsers: Record<string, TypingUser[]> // channelId -> typing users
   userPresence: Record<string, 'online' | 'offline' | 'away' | 'busy'> // userId -> status
   socketEmits: SocketEmits | null
+  // Voice channel participants: channelId -> VoiceParticipant[]
+  voiceParticipants: Record<string, VoiceParticipant[]>
 }
 
 interface RealtimeActions {
@@ -76,6 +92,12 @@ interface RealtimeActions {
   updatePresence: (data: PresenceUpdate) => void
   clearTypingForChannel: (channelId: string) => void
   setSocketEmits: (emits: SocketEmits) => void
+  // Voice actions
+  addVoiceParticipant: (channelId: string, participant: VoiceParticipant) => void
+  removeVoiceParticipant: (channelId: string, userId: string) => void
+  setVoiceParticipants: (channelId: string, participants: VoiceParticipant[]) => void
+  updateVoiceParticipantMute: (channelId: string, userId: string, isMuted: boolean) => void
+  clearVoiceParticipants: (channelId: string) => void
   reset: () => void
 }
 
@@ -85,6 +107,7 @@ const initialState: RealtimeState = {
   typingUsers: {},
   userPresence: {},
   socketEmits: null,
+  voiceParticipants: {},
 }
 
 export const useRealtimeStore = create<RealtimeState & RealtimeActions>(
@@ -188,6 +211,59 @@ export const useRealtimeStore = create<RealtimeState & RealtimeActions>(
       }),
 
     setSocketEmits: (emits) => set({ socketEmits: emits }),
+
+    // Voice actions
+    addVoiceParticipant: (channelId, participant) =>
+      set((state) => {
+        const current = state.voiceParticipants[channelId] || []
+        const exists = current.find((p) => p.userId === participant.userId)
+        if (exists) return state
+        return {
+          voiceParticipants: {
+            ...state.voiceParticipants,
+            [channelId]: [...current, participant],
+          },
+        }
+      }),
+
+    removeVoiceParticipant: (channelId, userId) =>
+      set((state) => {
+        const current = state.voiceParticipants[channelId] || []
+        return {
+          voiceParticipants: {
+            ...state.voiceParticipants,
+            [channelId]: current.filter((p) => p.userId !== userId),
+          },
+        }
+      }),
+
+    setVoiceParticipants: (channelId, participants) =>
+      set((state) => ({
+        voiceParticipants: {
+          ...state.voiceParticipants,
+          [channelId]: participants,
+        },
+      })),
+
+    updateVoiceParticipantMute: (channelId, userId, isMuted) =>
+      set((state) => {
+        const current = state.voiceParticipants[channelId] || []
+        return {
+          voiceParticipants: {
+            ...state.voiceParticipants,
+            [channelId]: current.map((p) =>
+              p.userId === userId ? { ...p, isMuted } : p
+            ),
+          },
+        }
+      }),
+
+    clearVoiceParticipants: (channelId) =>
+      set((state) => {
+        const newVoice = { ...state.voiceParticipants }
+        delete newVoice[channelId]
+        return { voiceParticipants: newVoice }
+      }),
 
     reset: () => set(initialState),
   })

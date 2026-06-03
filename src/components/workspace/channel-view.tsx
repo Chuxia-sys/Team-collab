@@ -57,6 +57,7 @@ import { useMessageStore } from '@/stores/messageStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useRealtimeStore } from '@/stores/realtimeStore';
+import { useVoiceChat } from '@/hooks/use-voice-chat';
 import { EmojiPicker } from '@/components/workspace/emoji-picker';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 
@@ -152,57 +153,95 @@ function HighlightedText({ text, highlight }: { text: string; highlight: string 
 function VoiceChannelControls({
   isInVoice,
   isMuted,
+  isConnecting,
+  listenOnly,
+  error,
   onJoin,
   onLeave,
   onToggleMute,
-  voiceParticipants,
+  participants,
   members,
   currentUser,
   currentChannel,
 }: {
   isInVoice: boolean;
   isMuted: boolean;
+  isConnecting?: boolean;
+  listenOnly?: boolean;
+  error?: string | null;
   onJoin: () => void;
   onLeave: () => void;
   onToggleMute: () => void;
-  voiceParticipants: Set<string>;
+  participants: Array<{ userId: string; username: string; avatar: string | null; isMuted: boolean }>;
   members: { userId: string; user?: { id: string; name: string; avatar?: string | null; status?: string } | null }[];
   currentUser: { id: string; name: string } | null;
   currentChannel: { name: string };
 }) {
-  const connectedMembers = members.filter((m) => voiceParticipants.has(m.userId));
+  const connectedMembers = (participants && members
+    ? members.filter((m) => participants.some((p) => p.userId === m.userId))
+    : []);
 
   return (
     <div className="space-y-3">
       {/* Voice connection status bar */}
       {isInVoice ? (
-        <div className="rounded-lg border bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 p-3">
+        <div className={cn(
+          'rounded-lg border p-3',
+          listenOnly
+            ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800'
+            : 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800',
+        )}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="relative flex size-3">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex size-3 rounded-full bg-green-500" />
-              </span>
-              <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                Connected to #{currentChannel.name}
+              {listenOnly ? (
+                <Headphones className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              ) : (
+                <span className="relative flex size-3">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex size-3 rounded-full bg-green-500" />
+                </span>
+              )}
+              <span className={cn(
+                'text-sm font-medium',
+                listenOnly ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400',
+              )}>
+                {listenOnly
+                  ? `Connected to #${currentChannel.name} (Listen Only)`
+                  : `Connected to #${currentChannel.name}`
+                }
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={isMuted ? 'secondary' : 'ghost'}
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={onToggleMute}
-                    >
-                      {isMuted ? <MicOff className="h-4 w-4 text-red-500" /> : <Mic className="h-4 w-4" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{isMuted ? 'Unmute' : 'Mute'}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {!listenOnly && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={isMuted ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={onToggleMute}
+                      >
+                        {isMuted ? <MicOff className="h-4 w-4 text-red-500" /> : <Mic className="h-4 w-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{isMuted ? 'Unmute' : 'Mute'}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {listenOnly && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-900/30 px-2 py-1 text-xs text-amber-700 dark:text-amber-400">
+                        <MicOff className="h-3 w-3" />
+                        No Mic
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Microphone unavailable — you can hear others but they won't hear you</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -221,6 +260,9 @@ function VoiceChannelControls({
               </TooltipProvider>
             </div>
           </div>
+          {listenOnly && error && (
+            <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">{error}</p>
+          )}
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-muted-foreground/30 p-6 text-center">
@@ -234,9 +276,25 @@ function VoiceChannelControls({
                 Click to join #{currentChannel.name} and start talking
               </p>
             </div>
-            <Button onClick={onJoin} className="gap-2 bg-purple-600 hover:bg-purple-700">
-              <Phone className="h-4 w-4" />
-              Join Voice
+            {error && (
+              <p className="text-xs text-destructive max-w-xs">{error}</p>
+            )}
+            <Button
+              onClick={onJoin}
+              className="gap-2 bg-purple-600 hover:bg-purple-700"
+              disabled={isConnecting}
+            >
+              {isConnecting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Phone className="h-4 w-4" />
+                  Join Voice
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -254,6 +312,8 @@ function VoiceChannelControls({
           <div className="flex flex-wrap gap-2">
             {connectedMembers.map((member) => {
               const isCurrent = member.userId === currentUser?.id;
+              const participant = participants.find((p) => p.userId === member.userId);
+              const muted = participant?.isMuted ?? false;
               return (
                 <div
                   key={member.userId}
@@ -268,10 +328,14 @@ function VoiceChannelControls({
                     {member.user?.name || 'Unknown'}
                     {isCurrent && ' (you)'}
                   </span>
-                  <span className="relative flex size-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                    <span className="relative inline-flex size-2 rounded-full bg-green-500" />
-                  </span>
+                  {muted ? (
+                    <MicOff className="h-3 w-3 text-red-400" />
+                  ) : (
+                    <span className="relative flex size-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                      <span className="relative inline-flex size-2 rounded-full bg-green-500" />
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -312,10 +376,15 @@ export function ChannelView() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
 
-  // Voice channel state
-  const [isInVoice, setIsInVoice] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [voiceParticipants, setVoiceParticipants] = useState<Set<string>>(new Set());
+  // Voice channel state — real-time via WebRTC + Socket.IO
+  const voiceChat = useVoiceChat({
+    channelId: currentChannelId,
+    workspaceId: currentWorkspaceId,
+    userId: user?.id || '',
+    username: user?.name || '',
+    avatar: user?.avatar || null,
+    initiallyMuted: false,
+  });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -618,29 +687,18 @@ export function ChannelView() {
     }
   }, []);
 
-  // Voice channel controls
+  // Voice channel controls — delegated to useVoiceChat hook
   const handleJoinVoice = useCallback(() => {
-    setIsInVoice(true);
-    if (user) {
-      setVoiceParticipants((prev) => new Set(prev).add(user.id));
-    }
-  }, [user]);
+    voiceChat.joinVoice();
+  }, [voiceChat]);
 
   const handleLeaveVoice = useCallback(() => {
-    setIsInVoice(false);
-    setIsMuted(false);
-    if (user) {
-      setVoiceParticipants((prev) => {
-        const next = new Set(prev);
-        next.delete(user.id);
-        return next;
-      });
-    }
-  }, [user]);
+    voiceChat.leaveVoice();
+  }, [voiceChat]);
 
   const toggleMute = useCallback(() => {
-    setIsMuted((prev) => !prev);
-  }, []);
+    voiceChat.toggleMute();
+  }, [voiceChat]);
 
   const getMemberName = useCallback(
     (userId: string) => {
@@ -1211,12 +1269,15 @@ export function ChannelView() {
         <div className="border-t p-4 shrink-0">
           {currentChannel.type === 'voice' ? (
             <VoiceChannelControls
-              isInVoice={isInVoice}
-              isMuted={isMuted}
+              isInVoice={voiceChat.isInVoice}
+              isMuted={voiceChat.isMuted}
+              isConnecting={voiceChat.isConnecting}
+              listenOnly={voiceChat.listenOnly}
+              error={voiceChat.error}
               onJoin={handleJoinVoice}
               onLeave={handleLeaveVoice}
               onToggleMute={toggleMute}
-              voiceParticipants={voiceParticipants}
+              participants={voiceChat.participants}
               members={members}
               currentUser={user}
               currentChannel={currentChannel}
