@@ -183,7 +183,7 @@ function AnimatedCounter({ target, suffix = '', prefix = '' }: { target: number;
   }, [isInView, target])
 
   return (
-    <div ref={ref} className="text-3xl sm:text-4xl font-bold text-primary mb-1">
+    <div ref={ref} className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary mb-1">
       {prefix}{count.toLocaleString()}{suffix}
     </div>
   )
@@ -271,12 +271,12 @@ export function LandingView() {
       {/* Header */}
       <header className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-background/90 backdrop-blur-md shadow-sm border-b' : 'bg-transparent border-b border-transparent'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between h-16 gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <MessageSquare className="size-5" />
               </div>
-              <span className="text-xl font-bold text-foreground">TeamCollab</span>
+              <span className="text-lg sm:text-xl font-bold text-foreground">TeamCollab</span>
             </div>
             <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
               <a href="#features" className="hover:text-foreground transition-colors">Features</a>
@@ -285,7 +285,7 @@ export function LandingView() {
               <a href="#about" className="hover:text-foreground transition-colors">About</a>
               <a href="#contact" className="hover:text-foreground transition-colors">Contact</a>
             </nav>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <Button
                 variant="ghost"
                 onClick={() => navigate('login')}
@@ -313,36 +313,36 @@ export function LandingView() {
       >
         <FloatingShapes />
         <motion.div
-          className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-36 lg:py-44"
+          className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-28 lg:py-44"
           style={{ opacity: heroOpacity }}
         >
           <motion.div className="text-center max-w-3xl mx-auto" variants={fadeUp}>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-1.5 text-sm font-medium text-white mb-8">
-              <Rocket className="size-4" />
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white mb-6 sm:mb-8">
+              <Rocket className="size-3 sm:size-4" />
               Collaboration, reimagined
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-white mb-6 leading-tight">
+            <h1 className="text-[clamp(1.75rem,6vw,2.5rem)] sm:text-5xl lg:text-7xl font-bold tracking-tight text-white mb-4 sm:mb-6 leading-tight">
               Everything your team needs,{' '}
               <span className="text-white/80">in one place</span>
             </h1>
-            <p className="text-lg sm:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-xl text-white/70 mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed px-2">
               TeamCollab brings messaging, documents, spreadsheets, presentations, and task management
               together in a single powerful platform.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full sm:w-auto">
               <Button
                 size="lg"
                 onClick={() => navigate('register')}
-                className="bg-white text-primary hover:bg-white/90 px-10 h-14 text-base font-semibold shadow-lg shadow-black/20 rounded-xl"
+                className="bg-white text-primary hover:bg-white/90 px-8 sm:px-10 h-12 sm:h-14 text-sm sm:text-base font-semibold shadow-lg shadow-black/20 rounded-xl w-full sm:w-auto"
               >
                 Start for Free
-                <ArrowRight className="ml-2 size-5" />
+                <ArrowRight className="ml-2 size-4 sm:size-5" />
               </Button>
               <Button
                 size="lg"
                 variant="outline"
                 onClick={() => navigate('login')}
-                className="px-10 h-14 text-base border-white/30 text-white hover:bg-white/10 hover:text-white rounded-xl"
+                className="px-8 sm:px-10 h-12 sm:h-14 text-sm sm:text-base border-white/30 text-white hover:bg-white/10 hover:text-white rounded-xl w-full sm:w-auto"
               >
                 Sign In
               </Button>
@@ -351,12 +351,12 @@ export function LandingView() {
 
           {/* Highlights */}
           <motion.div
-            className="mt-16 flex flex-wrap items-center justify-center gap-8"
+            className="mt-10 sm:mt-16 flex flex-wrap items-center justify-center gap-4 sm:gap-8"
             variants={fadeUp}
           >
             {highlights.map((item) => (
-              <div key={item.text} className="flex items-center gap-2 text-sm text-white/60">
-                <item.icon className="size-4 text-white/80" />
+              <div key={item.text} className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/60">
+                <item.icon className="size-3 sm:size-4 text-white/80" />
                 <span>{item.text}</span>
               </div>
             ))}
@@ -381,7 +381,7 @@ export function LandingView() {
               <AnimatedCounter target={2500} suffix="+" />
               <p className="text-sm text-muted-foreground">teams already collaborating</p>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 md:gap-12">
               {trustedCompanies.map((company, i) => (
                 <motion.div
                   key={company}
@@ -401,29 +401,29 @@ export function LandingView() {
       </section>
 
       {/* Features Grid */}
-      <section id="features" className="py-20">
+      <section id="features" className="py-16 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
-            className="text-center mb-16"
+            className="text-center mb-12 sm:mb-16"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary mb-4">
-              <Zap className="size-4" />
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-primary mb-4">
+              <Zap className="size-3 sm:size-4" />
               Powerful Features
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+            <h2 className="text-2xl sm:text-4xl font-bold text-foreground mb-3 sm:mb-4 px-2">
               All the tools you need
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto px-4">
               From real-time chat to complex project management, TeamCollab has everything
               your team needs to be productive.
             </p>
           </motion.div>
 
           <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
             initial="initial"
             whileInView="animate"
             viewport={{ once: true }}
@@ -432,14 +432,14 @@ export function LandingView() {
             {features.map((feature) => (
               <motion.div key={feature.title} variants={fadeUp}>
                 <Card className="h-full hover:shadow-xl transition-all duration-300 border-border/50 hover:border-primary/30 group hover:-translate-y-1">
-                  <CardContent className="p-6">
-                    <div className={`flex size-14 items-center justify-center rounded-2xl ${feature.color} ${feature.hoverColor} transition-all duration-300 mb-5`}>
-                      <feature.icon className="size-7" />
+                  <CardContent className="p-4 sm:p-6">
+                    <div className={`flex size-10 sm:size-14 items-center justify-center rounded-2xl ${feature.color} ${feature.hoverColor} transition-all duration-300 mb-4 sm:mb-5`}>
+                      <feature.icon className="size-5 sm:size-7" />
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1.5 sm:mb-2 group-hover:text-primary transition-colors">
                       {feature.title}
                     </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                       {feature.description}
                     </p>
                   </CardContent>
@@ -451,9 +451,9 @@ export function LandingView() {
       </section>
 
       {/* Stats Section with Animated Counters */}
-      <section className="py-16 bg-gradient-to-r from-primary/5 via-accent to-primary/5">
+      <section className="py-12 sm:py-16 bg-gradient-to-r from-primary/5 via-accent to-primary/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             {[
               { target: 2500, suffix: '+', label: 'Active Teams', icon: Users },
               { target: 50000, suffix: '+', label: 'Messages Daily', icon: MessageSquare },
@@ -482,27 +482,27 @@ export function LandingView() {
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20">
+      <section id="testimonials" className="py-16 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
-            className="text-center mb-16"
+            className="text-center mb-12 sm:mb-16"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary mb-4">
-              <Star className="size-4" />
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-primary mb-4">
+              <Star className="size-3 sm:size-4" />
               Loved by Teams
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+            <h2 className="text-2xl sm:text-4xl font-bold text-foreground mb-3 sm:mb-4">
               What our users say
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto px-4">
               Don&apos;t just take our word for it — hear from some of the teams already using TeamCollab.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {testimonials.map((testimonial, i) => (
               <motion.div
                 key={testimonial.name}
@@ -512,19 +512,19 @@ export function LandingView() {
                 transition={{ delay: i * 0.1 }}
               >
                 <Card className="h-full hover:shadow-lg transition-all duration-300 hover:border-primary/20 group">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-1 mb-4">
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center gap-1 mb-3 sm:mb-4">
                       {[...Array(testimonial.rating)].map((_, j) => (
-                        <Star key={j} className="size-4 fill-amber-400 text-amber-400" />
+                        <Star key={j} className="size-3 sm:size-4 fill-amber-400 text-amber-400" />
                       ))}
                     </div>
-                    <Quote className="size-8 text-primary/20 mb-3" />
-                    <p className="text-sm text-foreground leading-relaxed mb-6">
+                    <Quote className="size-6 sm:size-8 text-primary/20 mb-2 sm:mb-3" />
+                    <p className="text-xs sm:text-sm text-foreground leading-relaxed mb-4 sm:mb-6">
                       &ldquo;{testimonial.quote}&rdquo;
                     </p>
-                    <div className="flex items-center gap-3 pt-4 border-t">
-                      <Avatar className="size-10">
-                        <AvatarFallback className={`${testimonial.avatarColor} text-white text-xs font-semibold`}>
+                    <div className="flex items-center gap-3 pt-3 sm:pt-4 border-t">
+                      <Avatar className="size-8 sm:size-10">
+                        <AvatarFallback className={`${testimonial.avatarColor} text-white text-[10px] sm:text-xs font-semibold`}>
                           {testimonial.avatar}
                         </AvatarFallback>
                       </Avatar>
@@ -542,10 +542,10 @@ export function LandingView() {
       </section>
 
       {/* CTA Section */}
-      <section id="pricing" className="py-20">
+      <section id="pricing" className="py-16 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
-            className="rounded-3xl bg-gradient-to-br from-primary via-[#2d6a1e] to-secondary p-10 sm:p-16 text-center relative overflow-hidden"
+            className="rounded-3xl bg-gradient-to-br from-primary via-[#2d6a1e] to-secondary p-6 sm:p-10 lg:p-16 text-center relative overflow-hidden"
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -555,33 +555,33 @@ export function LandingView() {
             <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-white/5 blur-2xl" />
 
             <div className="relative">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3 sm:mb-4 px-2">
                 Ready to transform your team?
               </h2>
-              <p className="text-white/70 text-lg mb-10 max-w-xl mx-auto">
+              <p className="text-white/70 text-base sm:text-lg mb-8 sm:mb-10 max-w-xl mx-auto px-4">
                 Join thousands of teams already using TeamCollab to work better together.
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full sm:w-auto">
                 <Button
                   size="lg"
                   onClick={() => navigate('register')}
-                  className="bg-white text-primary hover:bg-white/90 px-10 h-14 text-base font-semibold shadow-lg rounded-xl"
+                  className="bg-white text-primary hover:bg-white/90 px-8 sm:px-10 h-12 sm:h-14 text-sm sm:text-base font-semibold shadow-lg rounded-xl w-full sm:w-auto"
                 >
                   Get Started Free
-                  <ArrowRight className="ml-2 size-5" />
+                  <ArrowRight className="ml-2 size-4 sm:size-5" />
                 </Button>
               </div>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-white/60 text-sm">
+              <div className="mt-6 sm:mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-white/60 text-xs sm:text-sm">
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="size-4" />
+                  <CheckCircle2 className="size-3 sm:size-4" />
                   Free to start
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="size-4" />
+                  <CheckCircle2 className="size-3 sm:size-4" />
                   No credit card required
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="size-4" />
+                  <CheckCircle2 className="size-3 sm:size-4" />
                   Unlimited workspaces
                 </div>
               </div>
@@ -592,10 +592,10 @@ export function LandingView() {
 
       {/* Enhanced Footer */}
       <footer id="about" className="border-t bg-muted/30 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 sm:gap-8 mb-8 sm:mb-10">
             {/* Brand + Newsletter */}
-            <div className="col-span-2 md:col-span-2">
+            <div className="col-span-1 sm:col-span-2 md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
                 <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   <MessageSquare className="size-5" />
@@ -614,7 +614,7 @@ export function LandingView() {
                     You&apos;re subscribed!
                   </div>
                 ) : (
-                  <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
+                  <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-2">
                     <Input
                       type="email"
                       placeholder="Enter your email"
@@ -623,7 +623,7 @@ export function LandingView() {
                       className="flex-1 text-sm h-9"
                       required
                     />
-                    <Button type="submit" size="sm" className="bg-primary hover:bg-primary/90 shrink-0">
+                    <Button type="submit" size="sm" className="bg-primary hover:bg-primary/90 shrink-0 w-full sm:w-auto">
                       <Mail className="size-4 mr-1" />
                       Subscribe
                     </Button>

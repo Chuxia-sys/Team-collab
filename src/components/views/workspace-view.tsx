@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useUIStore } from '@/stores/uiStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { SidebarProvider } from '@/components/ui/sidebar'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { MembersPanel } from '@/components/layout/members-panel'
@@ -25,6 +26,7 @@ export function WorkspaceView() {
   const currentSubView = useUIStore((s) => s.currentSubView)
   const membersPanelOpen = useUIStore((s) => s.membersPanelOpen)
   const { switchWorkspace } = useWorkspaceStore()
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     if (currentWorkspaceId) {
@@ -65,7 +67,7 @@ export function WorkspaceView() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-svh w-full">
+      <div className="flex h-svh w-full overflow-x-hidden">
         <AppSidebar />
         <div className="flex flex-1 flex-col min-w-0 overflow-y-auto">
           <AppHeader />
@@ -73,7 +75,7 @@ export function WorkspaceView() {
             <main className="flex-1 min-h-0" key={currentSubView}>
               {renderSubView()}
             </main>
-            {membersPanelOpen && <MembersPanel />}
+            {membersPanelOpen && !isMobile && <MembersPanel />}
           </div>
         </div>
       </div>

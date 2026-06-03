@@ -44,6 +44,8 @@ export function useVoiceChat({
   const peersRef = useRef<Map<string, PeerConnection>>(new Map())
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map())
   const pendingSignalsRef = useRef<Array<{ userId: string; username: string; signal: any }>>([])
+  const pendingCandidatesRef = useRef<Map<string, RTCIceCandidate[]>>(new Map())
+  const initiatedRef = useRef(false)
 
   // Socket emits from store
   const socketEmits = useRealtimeStore((s) => s.socketEmits)
@@ -92,6 +94,16 @@ export function useVoiceChat({
             peer = await createPeerConnection(fromUserId, fromUsername, false)
           }
           await peer.connection.setRemoteDescription(new RTCSessionDescription(signal))
+          // Flush any queued ICE candidates
+          const queued = pendingCandidatesRef.current.get(fromUserId)
+          if (queued) {
+            for (const candidate of queued) {
+              await peer.connection.addIceCandidate(candidate).catch((err) => {
+                console.warn('[VoiceChat] Queued ICE candidate error:', err)
+              })
+            }
+            pendingCandidatesRef.current.delete(fromUserId)
+          }
           const answer = await peer.connection.createAnswer()
           await peer.connection.setLocalDescription(answer)
           socketEmits?.emitVoiceSignal(channelId || '', fromUserId, answer)
@@ -99,11 +111,29 @@ export function useVoiceChat({
           // We received an answer to our offer
           if (peer) {
             await peer.connection.setRemoteDescription(new RTCSessionDescription(signal))
+            // Flush any queued ICE candidates
+            const queued = pendingCandidatesRef.current.get(fromUserId)
+            if (queued) {
+              for (const candidate of queued) {
+                await peer.connection.addIceCandidate(candidate).catch((err) => {
+                  console.warn('[VoiceChat] Queued ICE candidate error:', err)
+                })
+              }
+              pendingCandidatesRef.current.delete(fromUserId)
+            }
           }
         } else if (signal.candidate) {
           // We received an ICE candidate
-          if (peer) {
+          if (peer && peer.connection.remoteDescription) {
             await peer.connection.addIceCandidate(new RTCIceCandidate(signal))
+          } else if (peer) {
+            // Remote description not yet set — queue the candidate
+            const existing = pendingCandidatesRef.current.get(fromUserId) || []
+            existing.push(new RTCIceCandidate(signal))
+            pendingCandidatesRef.current.set(fromUserId, existing)
+          } else {
+            // No peer yet — queue via pendingSignalsRef
+            pendingSignalsRef.current.push({ userId: fromUserId, username: fromUsername, signal })
           }
         }
       } catch (err) {
@@ -185,8 +215,8 @@ export function useVoiceChat({
 
       peersRef.current.set(targetUserId, peer)
 
-      // If initiator, create and send offer
-      if (isInitiator && localStreamRef.current) {
+      // If initiator, create and send offer (even without local stream — we can still receive audio)
+      if (isInitiator) {
         try {
           const offer = await connection.createOffer()
           await connection.setLocalDescription(offer)
@@ -233,6 +263,9 @@ export function useVoiceChat({
       }
     }
 
+    // Reset initiated flag so we connect to existing participants on join
+    initiatedRef.current = false
+
     // Emit join event — server responds with 'voice-user-joined' updating the store.
     // The effect watching `participants` will auto-connect to existing peers.
     socketEmits.emitVoiceJoin(channelId, workspaceId, !stream || initiallyMuted)
@@ -274,6 +307,7 @@ export function useVoiceChat({
 
     // Remove self from participants
     removeVoiceParticipant(channelId, userId)
+    initiatedRef.current = false
     setIsInVoice(false)
     setIsMuted(false)
     setListenOnly(false)
@@ -322,17 +356,33 @@ export function useVoiceChat({
   }, [isInVoice, channelId, workspaceId, socketEmits])
 
   // ---- Watch for new participants joining after us ----
-  // When a new participant appears in the store, connect to them
+  // Only initiate connections on the first run (when we join the channel).
+  // For subsequent participants joining, wait for them to send us an offer
+  // to avoid the WebRTC glare problem (both sides creating offers simultaneously).
   useEffect(() => {
     if (!isInVoice || !channelId) return
 
     const currentParticipantIds = Array.from(peersRef.current.keys())
-    const newParticipants = participants.filter(
-      (p) => p.userId !== userId && !currentParticipantIds.includes(p.userId)
-    )
 
-    for (const participant of newParticipants) {
-      createPeerConnection(participant.userId, participant.username, true)
+    if (!initiatedRef.current) {
+      // First run — we just joined, initiate connections to all existing participants
+      initiatedRef.current = true
+      const existingParticipants = participants.filter((p) => p.userId !== userId)
+      for (const participant of existingParticipants) {
+        createPeerConnection(participant.userId, participant.username, true)
+      }
+    } else {
+      // Subsequent runs — someone else joined. Don't initiate; wait for their offer.
+      // But we still need to create a peer connection so we can receive their offer.
+      // Actually, createPeerConnection as non-initiator won't create an offer;
+      // we'll create the PC when their offer arrives via handleSignalForPeer.
+      // So this is intentionally a no-op for new participants.
+      const newParticipants = participants.filter(
+        (p) => p.userId !== userId && !currentParticipantIds.includes(p.userId)
+      )
+      if (newParticipants.length > 0) {
+        console.log('[VoiceChat] New participant joined, waiting for their offer')
+      }
     }
   }, [participants, isInVoice, channelId, userId, createPeerConnection])
 

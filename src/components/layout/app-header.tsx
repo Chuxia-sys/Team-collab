@@ -121,12 +121,12 @@ export function AppHeader() {
   const currentStatusOption = statusOptions.find((s) => s.value === user?.status) || statusOptions[0]
 
   return (
-    <header className="sticky top-0 z-50 flex h-14 items-center gap-2 border-b bg-background/80 backdrop-blur-md px-3 md:px-4">
+    <header className="sticky top-0 z-50 flex h-14 items-center gap-1 sm:gap-2 border-b bg-background/80 backdrop-blur-md px-2 sm:px-4">
       {/* Mobile menu toggle */}
       <Button
         variant="ghost"
         size="icon"
-        className="md:hidden size-9"
+        className="md:hidden size-9 shrink-0"
         onClick={() => setOpenMobile(true)}
       >
         <Menu className="size-5" />
@@ -142,8 +142,8 @@ export function AppHeader() {
       {currentWorkspaceId && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 px-2 h-9 hover:bg-accent">
-              <span className="font-semibold text-sm truncate max-w-30 sm:max-w-50">
+            <Button variant="ghost" className="gap-1 sm:gap-2 px-1.5 sm:px-2 h-9 hover:bg-accent min-w-0">
+              <span className="font-semibold text-sm truncate max-w-24 sm:max-w-40 lg:max-w-50">
                 {currentWorkspace?.name || 'Workspace'}
               </span>
               <ChevronsUpDown className="size-4 text-muted-foreground shrink-0" />
@@ -173,9 +173,9 @@ export function AppHeader() {
         </DropdownMenu>
       )}
 
-      {/* Sub view title */}
+      {/* Sub view title - hidden on small mobile */}
       {currentWorkspaceId && (
-        <span className="hidden sm:inline text-sm text-muted-foreground">
+        <span className="hidden md:inline text-sm text-muted-foreground whitespace-nowrap">
           / {getSubViewTitle()}
         </span>
       )}
