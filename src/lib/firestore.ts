@@ -762,8 +762,17 @@ class FirestoreSubModel<T extends Record<string, unknown>> {
    * findFirst for FirestoreSubModel — tries findUnique first, then falls back to findMany with take 1.
    */
   async findFirst(params: { where: Record<string, unknown>; select?: Record<string, unknown>; include?: Record<string, unknown> } = {}): Promise<T | null> {
-    const uniqueResult = await this.findUnique({ where: params.where, select: params.select, include: params.include });
-    if (uniqueResult) return uniqueResult;
+    // Only use findUnique for ID or compound-key lookups — it only uses the FIRST where field,
+    // so multi-field queries (e.g., { workspaceId, name }) would miss secondary conditions.
+    const hasId = params.where && params.where[this.idField];
+    const hasCompoundKey = params.where && Object.keys(params.where).some(k => k.endsWith('_userId') || k.endsWith('_id'));
+    const hasSingleField = params.where && Object.keys(params.where).length <= 1;
+
+    if (hasId || hasCompoundKey || hasSingleField) {
+      const uniqueResult = await this.findUnique({ where: params.where, select: params.select, include: params.include });
+      if (uniqueResult) return uniqueResult;
+    }
+
     const results = await this.findMany({ where: params.where, select: params.select, include: params.include, take: 1 });
     return results.length > 0 ? results[0] : null;
   }

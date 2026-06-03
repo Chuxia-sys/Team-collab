@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Hash,
+  Volume2,
+  Megaphone,
   Pin,
   Users,
   Info,
@@ -23,6 +25,11 @@ import {
   Search,
   ChevronUp,
   ChevronDown,
+  Phone,
+  PhoneOff,
+  Mic,
+  MicOff,
+  Headphones,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -141,6 +148,140 @@ function HighlightedText({ text, highlight }: { text: string; highlight: string 
   );
 }
 
+// Voice channel controls component
+function VoiceChannelControls({
+  isInVoice,
+  isMuted,
+  onJoin,
+  onLeave,
+  onToggleMute,
+  voiceParticipants,
+  members,
+  currentUser,
+  currentChannel,
+}: {
+  isInVoice: boolean;
+  isMuted: boolean;
+  onJoin: () => void;
+  onLeave: () => void;
+  onToggleMute: () => void;
+  voiceParticipants: Set<string>;
+  members: { userId: string; user?: { id: string; name: string; avatar?: string | null; status?: string } | null }[];
+  currentUser: { id: string; name: string } | null;
+  currentChannel: { name: string };
+}) {
+  const connectedMembers = members.filter((m) => voiceParticipants.has(m.userId));
+
+  return (
+    <div className="space-y-3">
+      {/* Voice connection status bar */}
+      {isInVoice ? (
+        <div className="rounded-lg border bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="relative flex size-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex size-3 rounded-full bg-green-500" />
+              </span>
+              <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                Connected to #{currentChannel.name}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={isMuted ? 'secondary' : 'ghost'}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={onToggleMute}
+                    >
+                      {isMuted ? <MicOff className="h-4 w-4 text-red-500" /> : <Mic className="h-4 w-4" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{isMuted ? 'Unmute' : 'Mute'}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="h-8 gap-1.5"
+                      onClick={onLeave}
+                    >
+                      <PhoneOff className="h-4 w-4" />
+                      Leave
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Leave voice channel</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-muted-foreground/30 p-6 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex size-14 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-950/30">
+              <Headphones className="h-7 w-7 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Voice Channel</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Click to join #{currentChannel.name} and start talking
+              </p>
+            </div>
+            <Button onClick={onJoin} className="gap-2 bg-purple-600 hover:bg-purple-700">
+              <Phone className="h-4 w-4" />
+              Join Voice
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Connected participants */}
+      {isInVoice && connectedMembers.length > 0 && (
+        <div className="rounded-lg border p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              In Voice ({connectedMembers.length})
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {connectedMembers.map((member) => {
+              const isCurrent = member.userId === currentUser?.id;
+              return (
+                <div
+                  key={member.userId}
+                  className="flex items-center gap-2 rounded-full border bg-muted/30 px-3 py-1"
+                >
+                  <Avatar className="h-5 w-5">
+                    <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
+                      {(member.user?.name || '??').slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs font-medium">
+                    {member.user?.name || 'Unknown'}
+                    {isCurrent && ' (you)'}
+                  </span>
+                  <span className="relative flex size-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-green-500" />
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChannelView() {
   const { currentWorkspaceId, currentChannelId, navigate } = useUIStore();
   const { channels, currentChannel, setCurrentChannel, loadChannels } = useChannelStore();
@@ -170,18 +311,24 @@ export function ChannelView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+
+  // Voice channel state
+  const [isInVoice, setIsInVoice] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [voiceParticipants, setVoiceParticipants] = useState<Set<string>>(new Set());
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
 
-  // Load channels if not loaded
+  // Load channels on workspace change (side-effect safe as sidebar also loads them)
   useEffect(() => {
-    if (currentWorkspaceId) {
+    if (currentWorkspaceId && channels.length === 0) {
       loadChannels(currentWorkspaceId);
     }
-  }, [currentWorkspaceId, loadChannels]);
+  }, [currentWorkspaceId, loadChannels, channels.length]);
 
   // Set current channel from channels list
   useEffect(() => {
@@ -454,6 +601,47 @@ export function ChannelView() {
     });
   }, [user?.id]);
 
+  // Channel type icon helpers
+  const getChannelIcon = useCallback((type?: string) => {
+    switch (type) {
+      case 'voice': return Volume2;
+      case 'announcement': return Megaphone;
+      default: return Hash;
+    }
+  }, []);
+
+  const getChannelIconClass = useCallback((type?: string) => {
+    switch (type) {
+      case 'voice': return 'text-purple-500';
+      case 'announcement': return 'text-amber-500';
+      default: return 'text-muted-foreground';
+    }
+  }, []);
+
+  // Voice channel controls
+  const handleJoinVoice = useCallback(() => {
+    setIsInVoice(true);
+    if (user) {
+      setVoiceParticipants((prev) => new Set(prev).add(user.id));
+    }
+  }, [user]);
+
+  const handleLeaveVoice = useCallback(() => {
+    setIsInVoice(false);
+    setIsMuted(false);
+    if (user) {
+      setVoiceParticipants((prev) => {
+        const next = new Set(prev);
+        next.delete(user.id);
+        return next;
+      });
+    }
+  }, [user]);
+
+  const toggleMute = useCallback(() => {
+    setIsMuted((prev) => !prev);
+  }, []);
+
   const getMemberName = useCallback(
     (userId: string) => {
       const member = members.find((m) => m.userId === userId);
@@ -514,7 +702,10 @@ export function ChannelView() {
         {/* Channel Header */}
         <div className="flex items-center justify-between border-b px-4 py-3 shrink-0">
           <div className="flex items-center gap-2">
-            <Hash className="h-5 w-5 text-muted-foreground" />
+            {(() => {
+              const Icon = getChannelIcon(currentChannel.type);
+              return <Icon className={cn('h-5 w-5', getChannelIconClass(currentChannel.type))} />;
+            })()}
             <span className="text-lg font-semibold">{currentChannel.name}</span>
             {/* Real-time connection indicator */}
             <TooltipProvider>
@@ -701,9 +892,16 @@ export function ChannelView() {
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Hash className="h-12 w-12 mb-3 opacity-30" />
+              {(() => {
+                const Icon = getChannelIcon(currentChannel.type);
+                return <Icon className="h-12 w-12 mb-3 opacity-30" />;
+              })()}
               <p className="text-lg font-medium">No messages yet</p>
-              <p className="text-sm">Be the first to send a message in #{currentChannel.name}!</p>
+              <p className="text-sm">
+                {currentChannel.type === 'voice'
+                  ? 'Be the first to join the voice channel!'
+                  : `Be the first to send a message in #${currentChannel.name}!`}
+              </p>
             </div>
           ) : (
             <div className="space-y-1">
@@ -1009,85 +1207,101 @@ export function ChannelView() {
           )}
         </AnimatePresence>
 
-        {/* Message Input */}
+        {/* Message Input / Voice Controls */}
         <div className="border-t p-4 shrink-0">
-          {/* Reply/Edit Indicator */}
-          <AnimatePresence>
-            {(replyingTo || editingMessage) && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="mb-2 flex items-center justify-between rounded-lg border bg-muted/50 px-3 py-2"
-              >
-                <div className="flex items-center gap-2 text-sm">
-                  {replyingTo && (
-                    <>
-                      <Reply className="h-4 w-4 text-primary" />
-                      <span>
-                        Replying to{' '}
-                        <span className="font-semibold">{getMemberName(replyingTo.userId)}</span>
-                      </span>
-                    </>
-                  )}
-                  {editingMessage && (
-                    <>
-                      <Pencil className="h-4 w-4 text-primary" />
-                      <span>Editing message</span>
-                    </>
-                  )}
-                </div>
+          {currentChannel.type === 'voice' ? (
+            <VoiceChannelControls
+              isInVoice={isInVoice}
+              isMuted={isMuted}
+              onJoin={handleJoinVoice}
+              onLeave={handleLeaveVoice}
+              onToggleMute={toggleMute}
+              voiceParticipants={voiceParticipants}
+              members={members}
+              currentUser={user}
+              currentChannel={currentChannel}
+            />
+          ) : (
+            <>
+              {/* Reply/Edit Indicator */}
+              <AnimatePresence>
+                {(replyingTo || editingMessage) && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="mb-2 flex items-center justify-between rounded-lg border bg-muted/50 px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2 text-sm">
+                      {replyingTo && (
+                        <>
+                          <Reply className="h-4 w-4 text-primary" />
+                          <span>
+                            Replying to{' '}
+                            <span className="font-semibold">{getMemberName(replyingTo.userId)}</span>
+                          </span>
+                        </>
+                      )}
+                      {editingMessage && (
+                        <>
+                          <Pencil className="h-4 w-4 text-primary" />
+                          <span>Editing message</span>
+                        </>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => {
+                        setReplyingTo(null);
+                        setEditingMessage(null);
+                        setInputValue('');
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/85 px-3 py-1 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground">
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Attach file</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <Input
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={`Message #${currentChannel.name}`}
+                  className="flex-1 border-none shadow-none focus-visible:ring-0 px-1"
+                  disabled={isLoading}
+                />
+
+                <EmojiPicker
+                  onEmojiSelect={(emoji) => setInputValue((prev) => prev + emoji)}
+                />
+
                 <Button
-                  variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
-                  onClick={() => {
-                    setReplyingTo(null);
-                    setEditingMessage(null);
-                    setInputValue('');
-                  }}
+                  onClick={handleSend}
+                  disabled={!inputValue.trim() || isLoading}
+                  className="h-8 w-8 shrink-0"
                 >
-                  <X className="h-4 w-4" />
+                  <Send className="h-4 w-4" />
                 </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex items-center gap-2 rounded-lg border bg-muted/85 px-3 py-1 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground">
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Attach file</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <Input
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={`Message #${currentChannel.name}`}
-              className="flex-1 border-none shadow-none focus-visible:ring-0 px-1"
-              disabled={isLoading}
-            />
-
-            <EmojiPicker
-              onEmojiSelect={(emoji) => setInputValue((prev) => prev + emoji)}
-            />
-
-            <Button
-              size="icon"
-              onClick={handleSend}
-              disabled={!inputValue.trim() || isLoading}
-              className="h-8 w-8 shrink-0"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -1115,7 +1329,10 @@ export function ChannelView() {
                   {/* Channel icon and name */}
                   <div className="flex flex-col items-center text-center">
                     <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 mb-3">
-                      <Hash className="h-8 w-8 text-primary" />
+                      {(() => {
+                        const Icon = getChannelIcon(currentChannel.type);
+                        return <Icon className="h-8 w-8 text-primary" />;
+                      })()}
                     </div>
                     <h3 className="font-bold text-lg">{currentChannel.name}</h3>
                     {currentChannel.description && (

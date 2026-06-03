@@ -30,6 +30,17 @@ import { useUIStore } from '@/stores/uiStore';
 import { usePresentationStore } from '@/stores/presentationStore';
 import { format } from 'date-fns';
 
+function safeFormatDate(dateStr: string | undefined | null, fmt: string): string {
+  if (!dateStr) return 'Unknown date';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'Unknown date';
+    return format(d, fmt);
+  } catch {
+    return 'Unknown date';
+  }
+}
+
 type SortOption = 'date' | 'name' | 'slides';
 type ViewMode = 'grid' | 'list';
 
@@ -261,7 +272,7 @@ export function PresentationsView() {
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {format(new Date(pres.updatedAt), 'MMM d, yyyy')}
+                            {safeFormatDate(pres.updatedAt, 'MMM d, yyyy')}
                           </div>
                         </div>
                         {pres.creator && (
@@ -314,7 +325,7 @@ export function PresentationsView() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {format(new Date(pres.updatedAt), 'MMM d')}
+                      {safeFormatDate(pres.updatedAt, 'MMM d')}
                     </div>
                     {pres.creator && (
                       <span className="text-[11px]">{pres.creator.name}</span>

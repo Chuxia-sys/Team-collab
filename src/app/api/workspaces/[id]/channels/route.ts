@@ -67,12 +67,15 @@ export async function POST(
       return NextResponse.json({ error: 'Channel name is required' }, { status: 400 });
     }
 
-    // Check if channel name already exists in workspace
+    // Idempotent check: if a channel with this name already exists, return it silently
     const existingChannel = await db.channel.findFirst({
       where: { workspaceId, name: name.trim().toLowerCase() },
     });
     if (existingChannel) {
-      return NextResponse.json({ error: 'A channel with this name already exists' }, { status: 409 });
+      return NextResponse.json({
+        channel: existingChannel,
+        isExisting: true,
+      }, { status: 200 });
     }
 
     const channel = await db.channel.create({
@@ -82,12 +85,13 @@ export async function POST(
         type: type || 'text',
         isPrivate: isPrivate || false,
         topic: topic?.trim() || null,
+        archived: false,
         workspaceId,
         createdBy: user.id,
       },
     });
 
-    return NextResponse.json({ channel }, { status: 201 });
+    return NextResponse.json({ channel, isExisting: false }, { status: 201 });
   } catch (error) {
     console.error('Create channel error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

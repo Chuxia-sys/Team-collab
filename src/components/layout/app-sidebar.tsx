@@ -35,6 +35,8 @@ import {
 import {
   LayoutDashboard,
   Hash,
+  Volume2,
+  Megaphone,
   FileText,
   Table2,
   Presentation,
@@ -207,7 +209,13 @@ export function AppSidebar() {
                               })
                             }
                           >
-                            <Hash className="size-4" />
+                            {channel.type === 'voice' ? (
+                              <Volume2 className="size-4" />
+                            ) : channel.type === 'announcement' ? (
+                              <Megaphone className="size-4" />
+                            ) : (
+                              <Hash className="size-4" />
+                            )}
                             <span>{channel.name}</span>
                             {channel.isPrivate && (
                               <span className="ml-auto text-xs text-muted-foreground">🔒</span>

@@ -16,13 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { CreateChannelDialog } from '@/components/workspace/create-channel-dialog'
 import {
   MessageSquare,
   FileText,
@@ -31,6 +25,8 @@ import {
   ListTodo,
   Plus,
   Hash,
+  Volume2,
+  Megaphone,
   Users,
   ArrowRight,
   Sparkles,
@@ -83,14 +79,12 @@ function getRelativeTime(dateStr: string): string {
 export function WorkspaceHome() {
   const { currentWorkspace, currentWorkspaceId, members, loadMembers } = useWorkspaceStore()
   const { channels, loadChannels, createChannel } = useChannelStore()
-  const { documents, loadDocuments } = useDocumentStore()
+  const { documents, loadDocuments, createDocument } = useDocumentStore()
   const { tasks, loadTasks } = useTaskStore()
   const { navigate } = useUIStore()
   const { user } = useAuthStore()
 
   const [createChannelOpen, setCreateChannelOpen] = useState(false)
-  const [channelName, setChannelName] = useState('')
-  const [channelDescription, setChannelDescription] = useState('')
 
   useEffect(() => {
     if (currentWorkspaceId) {
@@ -178,28 +172,24 @@ export function WorkspaceHome() {
     }
   }, [tasks, channels, members, documents])
 
-  const handleCreateChannel = async () => {
-    if (!currentWorkspaceId || !channelName.trim()) return
-    const channel = await createChannel(currentWorkspaceId, {
-      name: channelName.trim().toLowerCase().replace(/\s+/g, '-'),
-      description: channelDescription.trim() || undefined,
-    })
-    if (channel) {
-      setCreateChannelOpen(false)
-      setChannelName('')
-      setChannelDescription('')
-      navigate('workspace', {
-        workspaceId: currentWorkspaceId,
-        subView: 'channel',
-        channelId: channel.id,
-      })
-    }
-  }
-
-  const handleQuickAction = (action: string, subView: string) => {
+  const handleQuickAction = async (action: string, subView: string) => {
     if (!currentWorkspaceId) return
     if (action === 'create-channel') {
       setCreateChannelOpen(true)
+      return
+    }
+    if (action === 'new-doc') {
+      const doc = await createDocument(currentWorkspaceId, {
+        title: 'Untitled Document',
+        content: '',
+      })
+      if (doc) {
+        navigate('workspace', {
+          workspaceId: currentWorkspaceId,
+          subView: 'document-edit',
+          documentId: doc.id,
+        })
+      }
       return
     }
     // Set pending action so the target view can auto-open its dialog
@@ -561,48 +551,18 @@ export function WorkspaceHome() {
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Channels
             </h2>
-            <Dialog open={createChannelOpen} onOpenChange={setCreateChannelOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-primary hover:text-primary">
-                  <Plus className="size-4 mr-1" />
-                  New
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create Channel</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-2">
-                  <div className="space-y-2">
-                    <Label>Name</Label>
-                    <div className="relative">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                      <Input
-                        placeholder="channel-name"
-                        value={channelName}
-                        onChange={(e) => setChannelName(e.target.value)}
-                        className="pl-9"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Description (optional)</Label>
-                    <Input
-                      placeholder="What is this channel about?"
-                      value={channelDescription}
-                      onChange={(e) => setChannelDescription(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    onClick={handleCreateChannel}
-                    disabled={!channelName.trim()}
-                    className="w-full bg-primary hover:bg-primary/90"
-                  >
-                    Create Channel
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <div className="flex items-center gap-2">
+              <CreateChannelDialog open={createChannelOpen} onOpenChange={setCreateChannelOpen} />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary hover:text-primary"
+                onClick={() => setCreateChannelOpen(true)}
+              >
+                <Plus className="size-4 mr-1" />
+                New
+              </Button>
+            </div>
           </div>
 
           {channels.length === 0 ? (
@@ -636,7 +596,13 @@ export function WorkspaceHome() {
                     }
                   }}
                 >
-                  <Hash className="size-4 text-muted-foreground shrink-0" />
+                  {channel.type === 'voice' ? (
+                    <Volume2 className="size-4 text-purple-500 shrink-0" />
+                  ) : channel.type === 'announcement' ? (
+                    <Megaphone className="size-4 text-amber-500 shrink-0" />
+                  ) : (
+                    <Hash className="size-4 text-muted-foreground shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-medium">{channel.name}</span>
                     {channel.description && (

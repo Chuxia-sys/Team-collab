@@ -14,7 +14,7 @@ interface ChannelState {
 
 interface ChannelActions {
   loadChannels: (workspaceId: string) => Promise<void>;
-  createChannel: (workspaceId: string, data: CreateChannelData) => Promise<Channel | null>;
+  createChannel: (workspaceId: string, data: CreateChannelData) => Promise<(Channel & { _isExisting?: boolean }) | null>;
   updateChannel: (workspaceId: string, channelId: string, data: UpdateChannelData) => Promise<void>;
   deleteChannel: (workspaceId: string, channelId: string) => Promise<void>;
   setCurrentChannel: (channel: Channel | null) => void;
@@ -61,13 +61,23 @@ export const useChannelStore = create<ChannelState & ChannelActions>((set) => ({
       }
 
       const channel = data.channel;
+
+      if (data.isExisting) {
+        // Channel already exists — just set it as current without duplicating in the list
+        set({ currentChannel: channel, isLoading: false });
+        return { ...channel, _isExisting: true };
+      }
+
+      // New channel — add to list (deduplicate by id just in case)
       set((state) => ({
-        channels: [...state.channels, channel],
+        channels: state.channels.some((c) => c.id === channel.id)
+          ? state.channels
+          : [...state.channels, channel],
         currentChannel: channel,
         isLoading: false,
       }));
 
-      return channel;
+      return { ...channel, _isExisting: false };
     } catch {
       set({ error: 'Network error. Please try again.', isLoading: false });
       return null;

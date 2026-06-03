@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
@@ -33,7 +34,7 @@ interface CreateChannelDialogProps {
 
 export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogProps) {
   const { currentWorkspaceId, navigate } = useUIStore();
-  const { createChannel, isLoading } = useChannelStore();
+  const { createChannel, isLoading, error, clearError } = useChannelStore();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -54,8 +55,10 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
 
     if (channel) {
       toast({
-        title: 'Channel created',
-        description: `#${channel.name} has been created`,
+        title: channel._isExisting ? 'Channel already exists' : 'Channel created',
+        description: channel._isExisting
+          ? `Navigated to #${channel.name}`
+          : `#${channel.name} has been created`,
       });
       navigate('workspace', {
         workspaceId: currentWorkspaceId,
@@ -78,6 +81,7 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       resetForm();
+      clearError();
     }
     onOpenChange(newOpen);
   };
@@ -87,9 +91,19 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Create Channel</DialogTitle>
+          <DialogDescription>
+            Create a new channel to organize conversations by topic. Choose a name and type for your channel.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Error display */}
+          {error && (
+            <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
           {/* Channel Type */}
           <div className="space-y-2">
             <Label>Channel Type</Label>
