@@ -7,12 +7,14 @@ import { useMessageStore } from '@/stores/messageStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
+import type { Message } from '@/types'
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null)
   const { user } = useAuthStore()
   const { currentWorkspaceId, currentChannelId } = useUIStore()
   const {
+    isConnected,
     setConnected,
     setOnlineUsers,
     addOnlineUser,
@@ -53,12 +55,24 @@ export function useSocket() {
     socket.on('connect', () => {
       setConnected(true)
       // Identify user on connect
+      const currentWsId = useUIStore.getState().currentWorkspaceId
       socket.emit('user-online', {
         userId: user.id,
         username: user.name,
         avatar: user.avatar,
-        workspaceId: useUIStore.getState().currentWorkspaceId || undefined,
+        workspaceId: currentWsId || undefined,
       })
+
+      // Re-join current channel on (re)connect — fixes race condition where
+      // the component mounted before the socket connected, so the channel-join
+      // effect ran early and skipped joining the room.
+      const { currentChannelId } = useUIStore.getState()
+      if (currentChannelId && currentWsId) {
+        socket.emit('channel-join', {
+          channelId: currentChannelId,
+          workspaceId: currentWsId,
+        })
+      }
     })
 
     socket.on('disconnect', () => {
@@ -144,8 +158,37 @@ export function useSocket() {
         const exists = state.messages.find((m) => m.id === data.id)
         if (exists) return state
 
+        // Normalize socket data to match the Message type from API
+        // Socket delivers flat username/avatar; API delivers author object
+        const normalizedMessage = {
+          id: data.id,
+          channelId: data.channelId,
+          workspaceId: data.workspaceId,
+          userId: data.userId,
+          content: data.content,
+          isEdited: data.isEdited,
+          isPinned: data.isPinned,
+          isDeleted: data.isDeleted,
+          parentId: data.parentId,
+          replyCount: data.replyCount,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          author: {
+            id: data.userId,
+            name: data.username,
+            avatar: data.avatar,
+            email: '',
+            photoURL: null,
+            authProvider: 'email' as const,
+            passwordHash: undefined,
+            status: 'online' as const,
+            createdAt: '',
+            updatedAt: '',
+          },
+        }
+
         // Add message from any user (including current user if not already in store)
-        const newMessages = [...state.messages, data]
+        const newMessages = [...state.messages, normalizedMessage as Message]
         if (data.parentId) {
           return {
             messages: newMessages.map((m) =>
@@ -227,7 +270,7 @@ export function useSocket() {
         socket.emit('channel-leave', { channelId: prevChannelRef.current })
       }
     }
-  }, [currentChannelId, currentWorkspaceId])
+  }, [currentChannelId, currentWorkspaceId, isConnected])
 
   // ---- Emit methods ----
   const emitTypingStart = useCallback(

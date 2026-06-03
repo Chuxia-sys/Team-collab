@@ -159,6 +159,7 @@ export function ChannelView() {
   } = useMessageStore();
   const { user } = useAuthStore();
   const { members } = useWorkspaceStore();
+  const isConnected = useRealtimeStore((s) => s.isConnected);
   const socketEmits = useRealtimeStore((s) => s.socketEmits);
 
   const [inputValue, setInputValue] = useState('');
@@ -515,6 +516,26 @@ export function ChannelView() {
           <div className="flex items-center gap-2">
             <Hash className="h-5 w-5 text-muted-foreground" />
             <span className="text-lg font-semibold">{currentChannel.name}</span>
+            {/* Real-time connection indicator */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center">
+                    <span
+                      className={cn(
+                        'inline-block size-2 rounded-full transition-colors',
+                        isConnected
+                          ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50'
+                          : 'bg-red-500 shadow-sm shadow-red-500/50'
+                      )}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {isConnected ? 'Connected — receiving real-time updates' : 'Disconnected — messages may be delayed'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             {currentChannel.topic && (
               <>
                 <Separator orientation="vertical" className="h-5" />
@@ -735,7 +756,7 @@ export function ChannelView() {
                         {/* Other user: avatar + name header (before bubble, for non-grouped) */}
                         {!isOwn && !grouped && (
                           <div className="flex items-end gap-2 mb-0.5 ml-1">
-                            <Avatar className="h-6 w-6 shrink-0 ring-1 ring-background">
+                            <Avatar className="h-6 w-6 shrink-0 ring-1 ring-background dark:ring-border">
                               <AvatarImage src={getMemberAvatar(message.userId) || undefined} />
                               <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-semibold">
                                 {getMemberName(message.userId).slice(0, 2).toUpperCase()}
@@ -772,7 +793,7 @@ export function ChannelView() {
                           'relative rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap wrap-break-word shadow-sm',
                           isOwn
                             ? 'bg-primary text-primary-foreground rounded-br-md'
-                            : 'bg-[#d3d3d3] text-foreground rounded-bl-md',
+                            : 'bg-[#d3d3d3] dark:bg-muted text-foreground rounded-bl-md',
                           message.isDeleted && 'bg-muted/30 italic text-muted-foreground',
                           isBookmarked && isOwn && 'ring-2 ring-amber-500/30',
                           isBookmarked && !isOwn && 'ring-2 ring-amber-500/30',
@@ -855,7 +876,7 @@ export function ChannelView() {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
                             className={cn(
-                              'absolute top-0 flex items-center gap-0.5 rounded-md border bg-background p-0.5 shadow-sm z-10',
+                              'absolute top-0 flex items-center gap-0.5 rounded-md border bg-background dark:bg-card p-0.5 shadow-sm z-10',
                               isOwn ? 'left-0 -translate-x-2' : 'right-0 translate-x-2',
                             )}
                           >

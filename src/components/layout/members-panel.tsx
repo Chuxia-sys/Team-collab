@@ -226,7 +226,7 @@ export function MembersPanel() {
           {/* Connection status indicator */}
           <div className={cn(
             'flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-medium',
-            isConnected ? 'text-green-600 bg-green-50' : 'text-yellow-600 bg-yellow-50'
+            isConnected ? 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950/30' : 'text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-950/30'
           )}>
             {isConnected ? <Wifi className="size-2.5" /> : <WifiOff className="size-2.5" />}
           </div>
@@ -410,8 +410,8 @@ export function MembersPanel() {
                 animate={{ opacity: 1 }}
               >
                 <div className="flex items-center gap-2 mb-2 px-1">
-                  <span className="text-[11px] font-bold tracking-wider text-green-600">ONLINE</span>
-                  <Separator className="flex-1 bg-green-200" />
+                  <span className="text-[11px] font-bold tracking-wider text-green-600 dark:text-green-400">ONLINE</span>
+                  <Separator className="flex-1 bg-green-200 dark:bg-green-800/50" />
                   <span className="text-[10px] font-medium text-muted-foreground">{onlineMembers.length}</span>
                 </div>
                 <div className="space-y-0.5">
@@ -430,8 +430,8 @@ export function MembersPanel() {
                 animate={{ opacity: 1 }}
               >
                 <div className="flex items-center gap-2 mb-2 px-1">
-                  <span className="text-[11px] font-bold tracking-wider text-yellow-600">AWAY</span>
-                  <Separator className="flex-1 bg-yellow-200" />
+                  <span className="text-[11px] font-bold tracking-wider text-yellow-600 dark:text-yellow-400">AWAY</span>
+                  <Separator className="flex-1 bg-yellow-200 dark:bg-yellow-800/50" />
                   <span className="text-[10px] font-medium text-muted-foreground">{awayMembers.length}</span>
                 </div>
                 <div className="space-y-0.5">
@@ -449,8 +449,8 @@ export function MembersPanel() {
                 animate={{ opacity: 1 }}
               >
                 <div className="flex items-center gap-2 mb-2 px-1">
-                  <span className="text-[11px] font-bold tracking-wider text-gray-500">OFFLINE</span>
-                  <Separator className="flex-1 bg-gray-200" />
+                  <span className="text-[11px] font-bold tracking-wider text-gray-500 dark:text-gray-400">OFFLINE</span>
+                  <Separator className="flex-1 bg-gray-200 dark:bg-gray-700/50" />
                   <span className="text-[10px] font-medium text-muted-foreground">{offlineMembers.length}</span>
                 </div>
                 <div className="space-y-0.5">
